@@ -1,0 +1,22 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+# 実データをコミットしない: 保管ファイルと自動バックアップ（.bak1〜）・保存途中の一時ファイル、鍵ファイル、
+# ブラウザから書き出したパスワード CSV（平文）、データフォルダの設定・ログ
+*.pwmv
+*.pwmv.bak*
+*.pwmv.tmp-*
+*.pwmk
+*.pwmk.tmp-*
+*.csv
+settings.json
+logs/
+
+# PoC の実行結果（必要に応じて docs/poc にコピーして記録する）
+tpm-seal-poc-result.md
+
+# 配布フォルダ（scripts/publish.cmd の出力）
+publish/

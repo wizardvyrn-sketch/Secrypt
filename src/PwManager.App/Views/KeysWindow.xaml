@@ -1,0 +1,98 @@
+<Window x:Class="PwManager.App.Views.KeysWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:c="clr-namespace:PwManager.App.Controls"
+        xmlns:vm="clr-namespace:PwManager.Presentation.ViewModels;assembly=PwManager.Presentation"
+        mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:KeysViewModel}"
+        Title="{c:T Ja='鍵と設定', En='Keys and settings'}" Width="660" Height="720" WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        WindowStyle="None" ResizeMode="NoResize"
+        Background="{StaticResource Bg}" Foreground="{StaticResource Text}"
+        FontFamily="{StaticResource UiFont}" FontSize="13" TextOptions.TextFormattingMode="Display">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="34" ResizeBorderThickness="0" GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Border BorderThickness="1" BorderBrush="{StaticResource Line}">
+        <DockPanel>
+            <Grid DockPanel.Dock="Top" Height="34" Background="{StaticResource Panel}">
+                <TextBlock Text="{c:T Ja='鍵と設定', En='Keys and settings'}" Margin="14,0,0,0" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource Accent}"/>
+                <Button Style="{StaticResource CloseCaptionButton}" Content="&#xE8BB;" HorizontalAlignment="Right" ToolTip="{c:T Ja='閉じる', En='Close'}"
+                        WindowChrome.IsHitTestVisibleInChrome="True" Command="{Binding CloseCommand}"/>
+                <Border VerticalAlignment="Bottom" Height="1" Background="{StaticResource AccentGradient}" Opacity="0.55"/>
+            </Grid>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="22,16,22,18">
+                    <TextBlock Text="UNLOCK METHODS" Style="{StaticResource StepLabel}"/>
+                    <TextBlock Text="{c:T Ja='解錠方法', En='Unlock methods'}" Style="{StaticResource Heading}"/>
+                    <TextBlock Style="{StaticResource Body}" Text="{c:T Ja='復旧コードと、もう 1 つ以上の解錠方法が常に必要です。長く使っていない予備は、使えるか一度確かめておきましょう。', En='The recovery code and at least one other unlock method are always required. Check now and then that backups you have not used for a long time still work.'}"/>
+
+                    <Border Style="{StaticResource Card}" Padding="6" Margin="0,12,0,0">
+                        <ListBox ItemsSource="{Binding SlotRows}" SelectedItem="{Binding SelectedSlot}" MinHeight="120" MaxHeight="220">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Icon}" FontFamily="{StaticResource IconFont}" FontSize="16"
+                                                   Foreground="{StaticResource Accent}" VerticalAlignment="Center" Margin="2,0,12,0"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+
+                    <WrapPanel Margin="0,10,0,0">
+                        <Button Content="{c:T Ja='＋ 鍵ファイルを追加', En='+ Add key file'}" Command="{Binding AddKeyfileCommand}"/>
+                        <Button Content="{c:T Ja='＋ この PC の TPM を登録', En='+ Register this PC\'s TPM'}" Command="{Binding RegisterTpmCommand}"/>
+                        <Button Content="{c:T Ja='復旧コードを作り直す', En='Regenerate recovery code'}" Command="{Binding RegenerateRecoveryCommand}"/>
+                        <Button Content="{c:T Ja='選んだ方法を削除', En='Remove selected method'}" Style="{StaticResource QuietButton}" Command="{Binding RemoveSlotCommand}"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource WarnText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}}"/>
+
+                    <Border Height="1" Background="{StaticResource Line}" Margin="0,18,0,14"/>
+
+                    <TextBlock Text="SETTINGS" Style="{StaticResource StepLabel}"/>
+                    <TextBlock Text="{c:T Ja='設定', En='Settings'}" Style="{StaticResource Heading}"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/>
+                            <RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{c:T Ja='自動ロック（分）', En='Auto-lock (minutes)'}"/>
+                            <TextBlock Style="{StaticResource Hint}" Text="{c:T Ja='操作がないとロックします。画面ロック・スリープ時はすぐにロックします。', En='Locks when idle. Locks immediately when the screen locks or the PC sleeps.'}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding AutoLockText, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" TextAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,0">
+                            <TextBlock Text="{c:T Ja='クリップボードの消去（秒）', En='Clear clipboard (seconds)'}"/>
+                            <TextBlock Style="{StaticResource Hint}" Text="{c:T Ja='コピーしたパスワードを消去するまでの時間。クリップボード履歴には残りません。', En='Time until a copied password is cleared. It is not kept in the clipboard history.'}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding ClipboardText, UpdateSourceTrigger=PropertyChanged}" Grid.Row="1" Grid.Column="1" TextAlignment="Center" VerticalAlignment="Center" Margin="0,12,0,0"/>
+                    </Grid>
+                    <CheckBox IsChecked="{Binding VerboseLogging}" Margin="0,14,0,0"
+                              Content="{c:T Ja='詳細ログを記録する（問題の調査用。パスワードや項目の内容は記録しません）', En='Record detailed logs (for troubleshooting; passwords and entry contents are never recorded)'}"/>
+                    <TextBlock Text="{Binding VaultInfoText}" Style="{StaticResource Hint}" Margin="0,16,0,0"/>
+
+                    <Border Height="1" Background="{StaticResource Line}" Margin="0,16,0,12"/>
+                    <TextBlock Text="DIAGNOSTICS" Style="{StaticResource StepLabel}"/>
+                    <DockPanel Margin="0,4,0,0">
+                        <Button DockPanel.Dock="Right" Content="{c:T Ja='ログフォルダを開く', En='Open log folder'}" Style="{StaticResource QuietButton}" Command="{Binding OpenLogFolderCommand}"/>
+                        <TextBlock Text="{Binding DiagnosticsText}" Style="{StaticResource Hint}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <DockPanel Margin="0,16,0,0" LastChildFill="False">
+                        <Button DockPanel.Dock="Right" Content="{c:T Ja='閉じる', En='Close'}" Style="{StaticResource PrimaryButton}" Margin="0" Command="{Binding CloseCommand}"/>
+                    </DockPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </Border>
+</Window>

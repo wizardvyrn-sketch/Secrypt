@@ -1,0 +1,144 @@
+<UserControl x:Class="PwManager.App.Views.VaultView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:c="clr-namespace:PwManager.App.Controls"
+             xmlns:vm="clr-namespace:PwManager.Presentation.ViewModels;assembly=PwManager.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:VaultViewModel}"
+             Loaded="View_Loaded" PreviewKeyDown="View_PreviewKeyDown">
+    <UserControl.InputBindings>
+        <KeyBinding Key="N" Modifiers="Control" Command="{Binding NewCommand}"/>
+        <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}"/>
+    </UserControl.InputBindings>
+    <DockPanel>
+        <!-- ツールバー -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,10,16,4">
+            <DockPanel LastChildFill="False">
+                <Button DockPanel.Dock="Left" Content="{c:T Ja='＋ 新規', En='+ New'}" Style="{StaticResource AccentButton}" Command="{Binding NewCommand}" ToolTip="{c:T Ja='新しい項目 (Ctrl+N)', En='New entry (Ctrl+N)'}"/>
+                <Button DockPanel.Dock="Left" Content="{c:T Ja='ブラウザから取り込む', En='Import from browser'}" Command="{Binding ImportCommand}" ToolTip="{c:T Ja='Chrome / Edge のパスワード CSV を取り込む', En='Import a password CSV exported from Chrome / Edge'}"/>
+                <Button DockPanel.Dock="Right" Content="{c:T Ja='鍵と設定', En='Keys and settings'}" Style="{StaticResource QuietButton}" Command="{Binding OpenKeysCommand}"/>
+                <TextBlock Text="{Binding StatusText}" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="0,0,14,6" FontSize="12" Foreground="{StaticResource Accent}"/>
+            </DockPanel>
+        </Border>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- 一覧 -->
+            <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="12,12,10,10">
+                    <Grid DockPanel.Dock="Top">
+                        <TextBox x:Name="SearchBox" Padding="30,6,6,6" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" ToolTip="{c:T Ja='検索 (Ctrl+F)', En='Search (Ctrl+F)'}"/>
+                        <TextBlock Text="&#xE721;" FontFamily="{StaticResource IconFont}" Foreground="{StaticResource TextDim}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" IsHitTestVisible="False"/>
+                        <TextBlock Text="{c:T Ja='タイトル・ユーザー名・URL・タグで検索', En='Search by title, user name, URL or tag'}" Foreground="{StaticResource TextDim}"
+                                   Visibility="{Binding ShowSearchPlaceholder, Converter={StaticResource BoolToVisible}}"
+                                   VerticalAlignment="Center" Margin="32,0,0,0" IsHitTestVisible="False" FontSize="12"/>
+                    </Grid>
+                    <TextBlock Text="{Binding CountText}" DockPanel.Dock="Top" Style="{StaticResource StepLabel}" Margin="2,10,0,6"/>
+                    <ListBox x:Name="EntryList" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                             PreviewMouseLeftButtonDown="EntryList_PreviewMouseLeftButtonDown" PreviewKeyDown="EntryList_PreviewKeyDown">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{StaticResource TextMuted}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- 詳細 -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <Grid Margin="24,16,24,16">
+                    <!-- 空のとき -->
+                    <StackPanel Visibility="{Binding Editor.IsVisible, Converter={StaticResource BoolToCollapsed}}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,80,0,0">
+                        <TextBlock Text="NO ENTRY SELECTED" Style="{StaticResource StepLabel}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{c:T Ja='左の一覧から選ぶか、「＋ 新規」で追加してください。', En='Select an entry on the left, or add one with + New.'}" Foreground="{StaticResource TextMuted}" Margin="0,6,0,0"/>
+                        <TextBlock Text="{c:T Ja='ブラウザに保存しているパスワードは「ブラウザから取り込む」でまとめて移せます。', En='Passwords saved in your browser can be moved in one go with Import from browser.'}" Style="{StaticResource Hint}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel DataContext="{Binding Editor}" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisible}}" MaxWidth="680" HorizontalAlignment="Stretch">
+                        <TextBlock Text="{Binding Header}" Style="{StaticResource StepLabel}"/>
+                        <TextBox x:Name="TitleBox" Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" FontSize="18" FontWeight="Bold" Background="Transparent" Padding="2,4"/>
+
+                        <TextBlock Text="{c:T Ja='ユーザー名', En='User name'}" Style="{StaticResource FieldLabel}"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8C8;" ToolTip="{c:T Ja='ユーザー名をコピー', En='Copy user name'}" Command="{Binding DataContext.CopyUserCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <TextBox Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+
+                        <TextBlock Text="{c:T Ja='パスワード', En='Password'}" Style="{StaticResource FieldLabel}"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8C8;" ToolTip="{c:T Ja='パスワードをコピー（一定時間後に消去）', En='Copy password (cleared after a while)'}" Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE895;" ToolTip="{c:T Ja='パスワードを生成', En='Generate password'}" Command="{Binding DataContext.ToggleGeneratorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <Button DockPanel.Dock="Right" ToolTip="{c:T Ja='表示 / 非表示', En='Show / hide'}" Command="{Binding DataContext.ToggleRevealCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource IconButton}">
+                                        <Setter Property="Content" Value="&#xE7B3;"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsRevealed}" Value="True">
+                                                <Setter Property="Content" Value="&#xED1A;"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <c:RevealablePasswordBox c:Secret.Input="{Binding Password}" IsRevealed="{Binding IsRevealed}"
+                                                     FieldFontFamily="{StaticResource CodeFont}" FieldFontSize="14"/>
+                        </DockPanel>
+
+                        <!-- パスワード生成 -->
+                        <Border DataContext="{Binding DataContext.Generator, RelativeSource={RelativeSource AncestorType=UserControl}}" Style="{StaticResource Callout}"
+                                Visibility="{Binding IsOpen, Converter={StaticResource BoolToVisible}}" Margin="0,6,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{c:T Ja='長さ', En='Length'}" Foreground="{StaticResource TextMuted}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <TextBox Width="56" Text="{Binding LengthText, UpdateSourceTrigger=PropertyChanged}" Margin="0" TextAlignment="Center"/>
+                                    <TextBlock Text="{Binding EntropyText}" Foreground="{StaticResource TextDim}" FontSize="11" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                </StackPanel>
+                                <WrapPanel Margin="0,8,0,0">
+                                    <CheckBox Content="{c:T Ja='小文字', En='Lowercase'}" IsChecked="{Binding Lowercase}"/>
+                                    <CheckBox Content="{c:T Ja='大文字', En='Uppercase'}" IsChecked="{Binding Uppercase}"/>
+                                    <CheckBox Content="{c:T Ja='数字', En='Digits'}" IsChecked="{Binding Digits}"/>
+                                    <CheckBox Content="{c:T Ja='記号', En='Symbols'}" IsChecked="{Binding Symbols}"/>
+                                    <CheckBox Content="{c:T Ja='紛らわしい文字を除く', En='Exclude look-alike characters'}" IsChecked="{Binding ExcludeAmbiguous}"/>
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <Button Content="{c:T Ja='生成して入力', En='Generate and fill in'}" Style="{StaticResource AccentButton}" Command="{Binding DataContext.GenerateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="URL" Style="{StaticResource FieldLabel}"/>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE8A7;" ToolTip="{c:T Ja='ブラウザで開く', En='Open in browser'}" Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <TextBox Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"/>
+                        </DockPanel>
+
+                        <TextBlock Text="{c:T Ja='メモ', En='Notes'}" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" VerticalScrollBarVisibility="Auto"/>
+
+                        <TextBlock Text="{c:T Ja='タグ（カンマ区切り）', En='Tags (comma-separated)'}" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Text="{Binding TagsText, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Text="{Binding ModifiedText}" Style="{StaticResource Hint}" Margin="0,10,0,0"/>
+                        <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource WarnText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NullToCollapsed}}"/>
+
+                        <DockPanel Margin="0,18,0,0" LastChildFill="False">
+                            <Button DockPanel.Dock="Left" Content="{c:T Ja='削除', En='Delete'}" Style="{StaticResource QuietButton}" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                            <Button DockPanel.Dock="Right" Content="{c:T Ja='保存', En='Save'}" Style="{StaticResource PrimaryButton}" Margin="0" Command="{Binding DataContext.SaveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" ToolTip="{c:T Ja='保存 (Ctrl+S)', En='Save (Ctrl+S)'}"/>
+                            <Button DockPanel.Dock="Right" Content="{c:T Ja='元に戻す', En='Revert'}" Style="{StaticResource QuietButton}" Command="{Binding DataContext.RevertCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"/>
+                        </DockPanel>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </DockPanel>
+</UserControl>

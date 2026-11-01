@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PwManager.Cli/PwManager.Cli.csproj" />
+    <Project Path="src/PwManager.Core/PwManager.Core.csproj" />
+    <Project Path="src/PwManager.Application/PwManager.Application.csproj" />
+    <Project Path="src/PwManager.Platform.Windows/PwManager.Platform.Windows.csproj" />
+    <Project Path="src/PwManager.App/PwManager.App.csproj" />
+    <Project Path="src/PwManager.Presentation/PwManager.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PwManager.Core.Tests/PwManager.Core.Tests.csproj" />
+    <Project Path="tests/PwManager.Application.Tests/PwManager.Application.Tests.csproj" />
+    <Project Path="tests/PwManager.Platform.Windows.Tests/PwManager.Platform.Windows.Tests.csproj" />
+  </Folder>
+  <Folder Name="/poc/">
+    <Project Path="poc/TpmSealPoc/TpmSealPoc.csproj" />
+  </Folder>
+</Solution>

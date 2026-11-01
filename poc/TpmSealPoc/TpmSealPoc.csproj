@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>PwManager.Poc.TpmSeal</RootNamespace>
+    <AssemblyName>TpmSealPoc</AssemblyName>
+    <!-- PoC のため解析警告は抑える -->
+    <AnalysisLevel>latest-minimum</AnalysisLevel>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft TPM Software Stack (TSS.MSR) -->
+    <PackageReference Include="Microsoft.TSS" Version="2.1.1" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Secrypt 操作手順書</title>
+<style>
+:root{
+  --bg:#0E1A20; --s1:#14252D; --s2:#1A3039; --line:#28434E;
+  --fg:#DCE8EC; --mute:#8FA7B0; --teal:#4FD1C5; --blue:#6CB4EE;
+  --amber:#E3C27A; --ok:#8BD3A8;
+  --grad:linear-gradient(90deg,var(--teal),var(--blue));
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.8 "BIZ UDPGothic","Yu Gothic UI","Meiryo",sans-serif}
+a{color:var(--teal)}
+code,kbd,.mono{font-family:"Bahnschrift","Consolas",monospace}
+kbd{background:var(--s2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 .4em;font-size:.9em}
+code{background:var(--s2);border-radius:4px;padding:.05em .35em;font-size:.92em;word-break:break-all}
+pre{background:#0A1418;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;line-height:1.55}
+pre code{background:none;padding:0}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav{position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 16px;border-right:1px solid var(--line);background:var(--s1)}
+nav .brand{font-family:"Bahnschrift",sans-serif;letter-spacing:.12em;font-size:13px;color:var(--teal);display:flex;align-items:center;gap:8px}
+nav .brand::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--teal)}
+nav h2{font-size:17px;margin:4px 0 16px}
+nav ol{list-style:none;margin:0;padding:0;counter-reset:n}
+nav li{margin:2px 0}
+nav a{display:block;padding:5px 10px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px}
+nav a:hover{background:var(--s2);color:var(--teal)}
+nav .sub a{padding-left:24px;color:var(--mute);font-size:13px}
+main{padding:32px 40px 80px;min-width:0}
+header.hero{border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:8px}
+.eyebrow{font-family:"Bahnschrift",sans-serif;font-size:12px;letter-spacing:.14em;color:var(--teal);text-transform:uppercase}
+h1{font-size:30px;margin:4px 0 8px}
+h2{font-size:22px;margin:56px 0 12px;padding-bottom:8px;position:relative}
+h2::after{content:"";position:absolute;left:0;bottom:0;width:72px;height:2px;background:var(--grad)}
+h3{font-size:17px;margin:32px 0 8px;color:#EAF4F6}
+p{margin:8px 0}
+.lead{color:var(--mute)}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--s2);font-weight:normal;color:var(--mute);white-space:nowrap}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:8px;padding:14px}
+.card b{display:block;color:var(--teal);margin-bottom:4px}
+.card small{color:var(--mute)}
+.note,.warn,.tip{border-radius:8px;padding:10px 14px;margin:14px 0;border:1px solid var(--line);background:var(--s1)}
+.note::before,.warn::before,.tip::before{font-weight:bold;margin-right:6px}
+.note::before{content:"●";color:var(--blue)}
+.tip::before{content:"●";color:var(--ok)}
+.warn{border-color:#5A4B2A}
+.warn::before{content:"◆";color:var(--amber)}
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0}
+ol.steps>li{counter-increment:s;position:relative;padding:2px 0 10px 40px}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;
+  background:var(--grad);color:#08262A;font-family:"Bahnschrift",sans-serif;font-weight:bold;text-align:center;line-height:26px;font-size:14px}
+figure{margin:16px 0 24px;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:10px}
+figure img{display:block;width:100%;height:auto;border-radius:6px;cursor:zoom-in}
+figure.half{max-width:640px}
+figcaption{color:var(--mute);font-size:13px;padding:8px 4px 0}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pair figure{margin:8px 0}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0}
+.flow span{background:var(--s2);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:14px}
+.flow i{color:var(--teal);font-style:normal}
+.lightbox{position:fixed;inset:0;background:rgba(4,10,12,.92);display:none;align-items:center;justify-content:center;z-index:10;padding:20px;cursor:zoom-out}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px}
+footer{margin-top:64px;color:var(--mute);font-size:13px;border-top:1px solid var(--line);padding-top:12px}
+@media (max-width:860px){
+  .layout{display:block}
+  nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  main{padding:20px 16px 60px}
+  .pair{grid-template-columns:1fr}
+  h1{font-size:24px}
+  th{white-space:normal}
+  th,td{padding:6px 7px}
+}
+@media print{
+  nav{display:none}.layout{display:block}
+  body{background:#fff;color:#000}
+  figure,.card,.note,.warn,.tip{background:#fff;break-inside:avoid}
+  th{background:#eee;color:#000}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <div class="brand">SECRYPT</div>
+  <h2>操作手順書</h2>
+  <ol>
+    <li><a href="#overview">1. はじめに</a></li>
+    <li><a href="#requirements">2. 動作要件</a></li>
+    <li><a href="#install">3. インストール</a></li>
+    <li class="sub"><a href="#install-a">A. 配布フォルダから</a></li>
+    <li class="sub"><a href="#install-b">B. ソースから</a></li>
+    <li class="sub"><a href="#publish">配布パッケージを作る</a></li>
+    <li><a href="#setup">4. 初期設定</a></li>
+    <li class="sub"><a href="#setup-1">STEP 1 PIN</a></li>
+    <li class="sub"><a href="#setup-2">STEP 2 鍵ファイル</a></li>
+    <li class="sub"><a href="#setup-3">STEP 3 復旧コード</a></li>
+    <li><a href="#import">5. ブラウザから取り込む</a></li>
+    <li><a href="#entries">6. パスワードを使う・登録する</a></li>
+    <li class="sub"><a href="#search">検索・コピー</a></li>
+    <li class="sub"><a href="#new">新規登録・生成</a></li>
+    <li class="sub"><a href="#unsaved">未保存の確認</a></li>
+    <li><a href="#lock">7. ロックと解錠</a></li>
+    <li><a href="#keys">8. 鍵と設定</a></li>
+    <li><a href="#trouble">9. 困ったとき</a></li>
+    <li><a href="#uninstall">10. アンインストール</a></li>
+    <li><a href="#shortcuts">付録 キー操作</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Secrypt · User Manual · Ver. 1.01A</div>
+  <h1>Secrypt 操作手順書</h1>
+  <p class="lead">Windows 用のパスワード管理ツールです。マスターパスワードを覚えて打つ代わりに、<b>この PC の TPM＋PIN</b>・<b>USB メモリの鍵ファイル＋パスワード</b>・<b>紙の復旧コード</b>の 3 つの「鍵」で開きます。保存ファイル（vault.pwmv）が外に漏れても、鍵がなければ中身は読めません。</p>
+  <p class="lead">画面写真はすべて試験用の架空データ（example.test）で撮影したものです。</p>
+</header>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. はじめに — 3 つの鍵</h2>
+<p>パスワードの保管ファイルは、次のどれか 1 つで開けます。ふだんは ① を使い、PC が壊れた・買い替えたときに ②、すべて失くしたときの最後の手段が ③ です。</p>
+<div class="cards">
+  <div class="card"><b>① PIN（この PC）</b>PC の TPM（セキュリティチップ）に鍵を預け、PIN で取り出します。ふだん使う方法。<br><small>この PC でしか使えません。PIN を何度も間違えると TPM が一時的にロックされます。</small></div>
+  <div class="card"><b>② 鍵ファイル＋パスワード</b>USB メモリに保存した鍵ファイル（.pwmk）と、10 文字以上のパスワード。<br><small>予備として QR コードを紙に印刷しておけます。</small></div>
+  <div class="card"><b>③ 復旧コード</b>36 文字のコードを紙に書き写して保管。<br><small>①②をすべて失くしたときの最後の手段。写真やスクリーンショットは撮らないでください。</small></div>
+</div>
+<div class="note">マスターパスワードはどこにも保存されません。保管ファイルの中身は、毎回ランダムに作った鍵で暗号化されていて、①〜③はその鍵を取り出すための「鍵穴」です。</div>
+
+<h3>データの置き場所</h3>
+<table>
+<tr><th>もの</th><th>場所</th></tr>
+<tr><td>保管ファイル（パスワード本体）</td><td><code>%LOCALAPPDATA%\NewPWManageTool\vault.pwmv</code>（保存のたびに <code>.bak1</code>〜の世代バックアップ）</td></tr>
+<tr><td>設定・ログ</td><td><code>%LOCALAPPDATA%\NewPWManageTool\</code> の <code>settings.json</code>・<code>logs\</code>（ログにパスワードや PIN は記録しません）</td></tr>
+<tr><td>アプリ本体</td><td><code>%LOCALAPPDATA%\Programs\Secrypt\</code>（インストール先）</td></tr>
+<tr><td>鍵ファイル</td><td>初期設定で選んだ場所（USB メモリを推奨）</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="requirements">2. 動作要件</h2>
+<table>
+<tr><th>項目</th><th>要件</th><th>インストールスクリプトでの扱い</th></tr>
+<tr><td>OS</td><td>Windows 11、または Windows 10 バージョン 2004（ビルド 19041）以降</td><td>確認して、満たさなければ中止</td></tr>
+<tr><td>CPU</td><td>64 ビット（x64）</td><td>確認して、満たさなければ中止</td></tr>
+<tr><td>TPM 2.0</td><td>推奨（Windows 11 の PC には標準で搭載）。無くても鍵ファイルと復旧コードで使えます</td><td>最後に <code>pwm diag tpm</code> で状態を表示</td></tr>
+<tr><td>.NET</td><td><b>不要</b>（アプリは .NET を含む「自己完結」形式）。ソースからビルドするときだけ .NET 10 SDK が必要</td><td>B・配布パッケージ作成時: 無ければ <b>winget で自動導入</b>（確認してから）</td></tr>
+<tr><td>フォント</td><td>BIZ UDPゴシック・Bahnschrift（どちらも Windows 標準）</td><td>無ければ警告のみ（代わりのフォントで表示）</td></tr>
+<tr><td>権限</td><td>管理者権限は不要（ユーザー単位でインストール）</td><td>—</td></tr>
+<tr><td>ネットワーク</td><td>不要（B・配布パッケージ作成時のみ SDK と部品のダウンロード）。アプリは通信しません</td><td>—</td></tr>
+<tr><td>その他</td><td>USB メモリ 1 本（鍵ファイル用）、印刷できるプリンタ（QR コード・任意）</td><td>—</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="install">3. インストール</h2>
+<p>方法は 2 つあります。<b>ほかの PC に入れるときは A</b>（ビルド不要・.NET 不要）、ソースのある開発用 PC では B も使えます。</p>
+<div class="cards">
+  <div class="card"><b>A. 配布フォルダから</b>配布用の ZIP（またはフォルダ）をコピーして <code>setup.cmd</code> を実行するだけ。<br><small>インターネット接続・.NET・Git は不要。</small></div>
+  <div class="card"><b>B. ソースから</b>リポジトリで <code>scripts\install.cmd</code>。ビルドしてそのままインストール。<br><small>.NET 10 SDK が無ければ winget で導入します。</small></div>
+</div>
+
+<h3 id="install-a">A. 配布フォルダからインストールする（ほかの PC）</h3>
+<p>配布パッケージ <code>Secrypt-1.01A-win-x64</code> の中身:</p>
+<table>
+<tr><th>ファイル</th><th>内容</th></tr>
+<tr><td><code>setup.cmd</code> / <code>setup.ps1</code></td><td>インストール・アンインストール</td></tr>
+<tr><td><code>app\</code></td><td>アプリ本体 <code>Secrypt.exe</code>（.NET を含む自己完結形式）と診断ツール <code>app\cli\pwm.exe</code></td></tr>
+<tr><td><code>manual.html</code></td><td>この操作手順書（画像を埋め込んだ 1 ファイル）</td></tr>
+<tr><td><code>README.txt</code> / <code>LICENSE.txt</code></td><td>簡単な説明・ライセンス</td></tr>
+<tr><td><code>SHA256SUMS.txt</code></td><td>各ファイルのハッシュ（コピー中の破損や改ざんの確認用）</td></tr>
+</table>
+<ol class="steps">
+  <li><b>配布パッケージをコピーする。</b> USB メモリなどで ZIP を PC にコピーし、右クリック →「すべて展開」します（ZIP のまま中の setup.cmd を実行しないでください）。</li>
+  <li><b><code>setup.cmd</code> をダブルクリックする。</b> 動作要件を確認し、<code>%LOCALAPPDATA%\Programs\Secrypt</code> にコピーして、スタートメニューにショートカットを作ります。デスクトップにも作るときは、コマンドプロンプトで <code>setup.cmd -DesktopShortcut</code>。</li>
+  <li><b>「インストールが完了しました。」と出たら</b>何かキーを押して閉じます。展開したフォルダは削除してかまいません。</li>
+  <li>スタートメニューの <b>Secrypt</b> から起動し、<a href="#setup">初期設定</a>に進みます。</li>
+</ol>
+<pre><code>== 1/4 動作要件の確認
+  [OK] Windows ビルド 26100
+  [OK] 64 ビット
+  [OK] フォント BIZ UDPGothic
+  [OK] フォント Bahnschrift
+  [OK] コピー元: …\Secrypt-1.01A-win-x64\app
+== 2/4 配置: C:\Users\(ユーザー名)\AppData\Local\Programs\Secrypt
+  [OK] プログラムをコピーしました（版 0.1.0）
+== 3/4 ショートカット
+  [OK] スタートメニュー: Secrypt
+== 4/4 確認
+  [OK] TPM: 利用できます（SRK を読み込めました）。
+
+インストールが完了しました。</code></pre>
+<div class="warn">署名のないアプリのため、初回起動時に「Windows によって PC が保護されました」と表示されることがあります。自分で作った配布パッケージなど配布元が確かな場合は「詳細情報」→「実行」を押します。</div>
+<div class="note">ハッシュを確かめるとき（任意）: PowerShell で <code>Get-FileHash app\Secrypt.exe</code> を実行し、<code>SHA256SUMS.txt</code> の同じファイルの値と一致することを確認します。</div>
+
+<h3 id="install-b">B. ソースからインストールする（開発用 PC）</h3>
+<ol class="steps">
+  <li><b>ソースを用意する。</b>
+<pre><code>git clone https://github.com/wizardvyrn-sketch/Secrypt.git
+cd Secrypt</code></pre></li>
+  <li><b><code>scripts\install.cmd</code> を実行する。</b> .NET 10 SDK が無ければ導入を確認されるので <kbd>Y</kbd>（winget で導入）。初回はビルドに数分かかります。表示は A の前にビルドの手順が付くだけで、あとは同じです。</li>
+</ol>
+
+<h3 id="publish">配布パッケージを作る（開発用 PC）</h3>
+<p>ソースのある PC で次を実行すると、<code>publish\Secrypt-&lt;版&gt;-win-x64\</code> と同じ名前の ZIP（約 90 MB）ができます。これを A の手順で配ります。</p>
+<pre><code>scripts\publish.cmd</code></pre>
+<p>ビルド前に自動テストを実行するときは <code>scripts\publish.cmd -RunTests</code>。</p>
+
+<h3>オプション（setup.cmd・install.cmd 共通）</h3>
+<table>
+<tr><th>指定</th><th>内容</th></tr>
+<tr><td><code>-DesktopShortcut</code></td><td>デスクトップにもショートカットを作る</td></tr>
+<tr><td><code>-AddToPath</code></td><td>診断ツール <code>pwm</code> をどこからでも使えるよう、ユーザーの PATH に追加</td></tr>
+<tr><td><code>-InstallDir &lt;フォルダ&gt;</code></td><td>インストール先を変える（空のフォルダか、以前このスクリプトで入れたフォルダのみ）</td></tr>
+<tr><td><code>-Uninstall</code></td><td>アンインストール（<a href="#uninstall">10 章</a>）</td></tr>
+<tr><td><code>-RunTests</code></td><td>（install.cmd のみ）ビルド前に自動テストを実行</td></tr>
+<tr><td><code>-Yes</code></td><td>確認をすべて「はい」で進める</td></tr>
+</table>
+<div class="tip"><b>更新するとき</b>は、新しい版の配布パッケージで <code>setup.cmd</code> を実行します（B の場合は <code>git pull</code> してから <code>scripts\install.cmd</code>）。パスワードのデータはそのまま引き継がれます。</div>
+<div class="warn">どのスクリプトもパスワードのデータ（<code>%LOCALAPPDATA%\NewPWManageTool</code>）に一切触れません。インストール先にこのフォルダや、関係のないファイルが入ったフォルダを指定した場合は中止します。</div>
+
+<!-- ============================================================ -->
+<h2 id="setup">4. 初期設定（最初の 1 回）</h2>
+<p>初めて起動すると、3 つの鍵を順に作る画面になります。<b>USB メモリ</b>と<b>紙とペン</b>を用意してください。</p>
+<div class="flow"><span>STEP 1 PIN</span><i>→</i><span>STEP 2 鍵ファイル</span><i>→</i><span>STEP 3 復旧コード</span><i>→</i><span>一覧画面</span></div>
+
+<h3 id="setup-1">STEP 1　この PC で開くための PIN</h3>
+<figure><img src="images/01-setup-pin.png" alt="初期設定 STEP 1: PIN の入力"><figcaption>「● TPM を利用できます」と出ていれば、この PC で PIN が使えます。</figcaption></figure>
+<ol class="steps">
+  <li>「PIN（6 文字以上）」に PIN を入力し、「PIN（確認）」にもう一度入力します。数字だけでなく英字も使えます。</li>
+  <li><b>次へ</b> を押します。少し待つと（TPM に鍵を預ける処理）STEP 2 に進みます。</li>
+</ol>
+<div class="note">Windows のサインイン PIN とは別のものにしてください。TPM が使えない PC では「◆ 利用できません」と理由が出ます。その場合は <b>TPM を使わずに進む</b> を押し、鍵ファイルと復旧コードだけで使います（あとから <a href="#keys">鍵と設定</a> で登録できます）。</div>
+
+<h3 id="setup-2">STEP 2　USB メモリの鍵ファイルとパスワード</h3>
+<figure><img src="images/02-setup-keyfile.png" alt="初期設定 STEP 2: 鍵ファイルの作成"><figcaption>鍵ファイルを作成した後の状態。「QR コードを印刷」と確認のチェックが現れます。</figcaption></figure>
+<ol class="steps">
+  <li>「パスワード（10 文字以上）」と「パスワード（確認）」を入力します。鍵ファイルと組み合わせて使うパスワードです。</li>
+  <li><b>保存先を選ぶ</b> で、USB メモリの中を選びます（ファイル名の既定は <code>Secrypt.pwmk</code>）。</li>
+  <li><b>次へ</b> を押すと鍵ファイルが作られ、「● 鍵ファイルを作成しました」と表示されます。</li>
+  <li>予備として <b>QR コードを印刷</b> しておくと、USB メモリを失くしても紙とパスワードで開けます（あとからでも印刷できます）。</li>
+  <li>「鍵ファイルを保存した」にチェックを入れ、<b>次へ</b>。</li>
+</ol>
+<div class="warn">保存先が PC 内のドライブ（C: など）だと琥珀色の ◆ で警告します。保管ファイルと同じ PC に鍵ファイルを置くと、PC ごと盗まれたときの守りが弱くなるためです。保管ファイルと同じフォルダには保存できません。</div>
+
+<h3 id="setup-3">STEP 3　復旧コード（紙に書き写す）</h3>
+<figure><img src="images/03-setup-recovery.png" alt="初期設定 STEP 3: 復旧コードの表示"><figcaption>36 文字（4 文字 × 9 組）の復旧コード。画面の写真やスクリーンショットは撮らないでください。（写真は試験用の使い捨てのコードです）</figcaption></figure>
+<ol class="steps">
+  <li>表示されたコードを紙に書き写します。<code>0</code>（ゼロ）と <code>O</code>、<code>1</code> と <code>I</code>・<code>L</code> は同じ文字として扱われるので、あいまいでも大丈夫です。</li>
+  <li>「書き写したので、コードを隠して確認する」にチェックを入れます。コードが隠れます。</li>
+  <li>画面の指示（例: 左から 4 番目と 6 番目）の組を、<b>紙を見ながら</b>入力します。</li>
+  <li><b>設定を完了する</b> を押します。</li>
+</ol>
+<figure class="half"><img src="images/04-setup-verify.png" alt="復旧コードの確認入力"><figcaption>コードを隠した状態で、指定された 2 組を紙から入力します。</figcaption></figure>
+<div class="tip">書き写した紙は、USB メモリとは別の場所（引き出し・金庫など）に保管してください。</div>
+
+<!-- ============================================================ -->
+<h2 id="import">5. ブラウザから取り込む</h2>
+<p>Chrome や Edge に保存しているパスワードを、CSV ファイル経由でまとめて取り込めます。</p>
+<h3>ブラウザで CSV を書き出す</h3>
+<table>
+<tr><th>Chrome</th><td>設定 → 自動入力とパスワード → Google パスワード マネージャー → 設定 → エクスポート</td></tr>
+<tr><th>Edge</th><td>設定 → パスワード → 「…」 → パスワードのエクスポート</td></tr>
+</table>
+<h3>取り込む</h3>
+<ol class="steps">
+  <li>一覧画面の上の <b>ブラウザから取り込む</b> を押します。手順の説明が出ます。</li>
+  <li><b>ファイルを選ぶ</b> で、書き出した CSV を選びます。</li>
+  <li>件数の確認が出ます。<b>取り込む</b> を押します。</li>
+</ol>
+<div class="pair">
+  <figure><img src="images/06-import-intro.png" alt="取り込みの説明"><figcaption>取り込みの説明。CSV にはパスワードが平文で入っています。</figcaption></figure>
+  <figure><img src="images/07-import-confirm.png" alt="取り込みの確認"><figcaption>件数の確認。「取り込み後、CSV ファイルを削除する」は既定でオン。</figcaption></figure>
+</div>
+<div class="warn">CSV にはパスワードがそのまま書かれています。取り込み後に自動で削除する設定（既定）のままにし、ダウンロードフォルダなどに残っていないか確認してください。</div>
+<p>同じ URL とユーザー名の組み合わせがすでに登録されている行と、パスワードが空の行は取り込みません。取り込んだ項目にはタグ <code>imported</code> が付きます。</p>
+
+<!-- ============================================================ -->
+<h2 id="entries">6. パスワードを使う・登録する</h2>
+<figure><img src="images/08-vault-detail.png" alt="一覧と詳細"><figcaption>左が一覧、右が選んだ項目の詳細。パスワードは伏せ字で表示されます。</figcaption></figure>
+<table>
+<tr><th>ボタン</th><th>働き</th></tr>
+<tr><td>📋（ユーザー名・パスワードの右）</td><td>クリップボードにコピー。<b>20 秒後に自動で消えます</b>（設定で変更可）。Win+V のクリップボード履歴やクラウド同期には残りません</td></tr>
+<tr><td>👁（目のアイコン）</td><td>パスワードの表示・伏せ字の切り替え。項目を開き直すと伏せ字に戻ります</td></tr>
+<tr><td>⟳（矢印のアイコン）</td><td>パスワード生成の欄を開く</td></tr>
+<tr><td>↗（URL の右）</td><td>既定のブラウザで URL を開く（http / https のみ）</td></tr>
+<tr><td>保存 / 元に戻す / 削除</td><td>変更の確定 / 取り消し / 項目の削除（確認あり）</td></tr>
+</table>
+
+<h3 id="search">検索してコピーする（いちばんよく使う操作）</h3>
+<ol class="steps">
+  <li>検索欄（<kbd>Ctrl</kbd>+<kbd>F</kbd>）にサイト名などの一部を入力します。タイトル・ユーザー名・URL・タグから探します。</li>
+  <li>一覧で項目を選び、パスワードの 📋 を押します。</li>
+  <li>ブラウザのログイン画面に貼り付け（<kbd>Ctrl</kbd>+<kbd>V</kbd>）ます。20 秒以内に貼り付けてください。</li>
+</ol>
+<figure class="half"><img src="images/16-search.png" alt="検索"><figcaption>「bank」で検索した例。件数が「1 / 5 ITEMS」のように表示されます。</figcaption></figure>
+
+<h3 id="new">新しく登録する・強いパスワードを作る</h3>
+<ol class="steps">
+  <li><b>＋ 新規</b>（<kbd>Ctrl</kbd>+<kbd>N</kbd>）を押し、タイトル・ユーザー名・URL を入力します（タイトルか URL のどちらかは必須）。</li>
+  <li>パスワード欄の ⟳ を押すと生成の欄が開きます。長さ（既定 20）と使う文字の種類を選び、<b>生成して入力</b> を押します。強さの目安（ビット数）も表示されます。</li>
+  <li><b>保存</b>（<kbd>Ctrl</kbd>+<kbd>S</kbd>）で確定します。</li>
+</ol>
+<div class="pair">
+  <figure><img src="images/09-generator.png" alt="パスワード生成"><figcaption>生成の欄。「紛らわしい文字を除く」で 0/O、1/l なども避けられます。</figcaption></figure>
+  <figure><img src="images/17-new-entry.png" alt="新規登録"><figcaption>新規登録で生成したところ。保存するまで確定しません。</figcaption></figure>
+</div>
+<div class="tip">既存のサイトのパスワードを変えるときは、先にサイト側で変更を済ませてから、この画面で生成 → 保存してください。順番が逆だと、サイト側の変更に失敗したときに古いパスワードが分からなくなります（保存前なら <b>元に戻す</b> で戻せます）。</div>
+
+<h3 id="unsaved">保存せずに別の項目へ移ったとき</h3>
+<figure class="half"><img src="images/10-unsaved.png" alt="未保存の変更の確認"><figcaption>変更を保存していない状態で別の項目を選ぶと、確認が出ます。</figcaption></figure>
+<table>
+<tr><th>戻る</th><td>何もせず元の項目に戻る（一覧の選択も元のまま）</td></tr>
+<tr><th>破棄する</th><td>変更を捨てて、選んだ項目へ移る</td></tr>
+<tr><th>保存する</th><td>保存してから、選んだ項目へ移る</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="lock">7. ロックと解錠</h2>
+<h3>ロックされるとき</h3>
+<ul>
+  <li>タイトル帯の 🔒 ボタン、または <kbd>Ctrl</kbd>+<kbd>L</kbd></li>
+  <li>何も操作しないまま 5 分たったとき（設定で 1〜120 分）</li>
+  <li>Windows の画面ロック（<kbd>Win</kbd>+<kbd>L</kbd>）・スリープ・ユーザー切り替えのとき（すぐにロック）</li>
+  <li>ウィンドウを閉じたとき（ロックしてから終了）</li>
+</ul>
+<p>ロックすると、メモリ上の鍵と画面のパスワードを消し、アプリがコピーしたクリップボードの内容も消します。</p>
+
+<h3>解錠する</h3>
+<div class="pair">
+  <figure><img src="images/12-unlock-pin.png" alt="PIN で解錠"><figcaption><b>PIN（この PC）</b>: PIN を入力して <kbd>Enter</kbd>。ふだんはこれだけ。</figcaption></figure>
+  <figure><img src="images/13-unlock-keyfile.png" alt="鍵ファイルで解錠"><figcaption><b>鍵ファイル</b>: 前回の場所が自動で入ります。USB メモリを挿してパスワードを入力。</figcaption></figure>
+</div>
+<div class="pair">
+  <figure><img src="images/15-unlock-recovery.png" alt="復旧コードで解錠"><figcaption><b>復旧コード</b>: 紙のコード 36 文字を入力（区切りや大小文字は自由）。</figcaption></figure>
+  <figure><img src="images/14-unlock-error.png" alt="解錠の失敗"><figcaption>鍵ファイルのパスワードが違うときの表示。</figcaption></figure>
+</div>
+<div class="note"><b>QR コードから開く</b>: USB メモリが無いときは、鍵ファイルのタブで「印刷した QR のテキストを入力する」を押し、印刷した QR コードを読み取ったテキスト（<code>PWMK1:</code> で始まる文字列）とパスワードを入力します。</div>
+<div class="warn"><b>PIN の入力回数に注意</b>: PIN を間違えるたびに TPM の失敗回数が増え、続けて間違えると TPM が一時的にロックされます（時間がたつと解除されます）。思い出せないときは、鍵ファイルか復旧コードで開いてから <a href="#keys">PIN を登録し直して</a>ください。</div>
+<div class="tip">復旧コードで開いたあとは、<a href="#keys">鍵と設定</a> で失くした鍵を作り直し、<b>復旧コードを作り直す</b> ことをおすすめします。</div>
+
+<!-- ============================================================ -->
+<h2 id="keys">8. 鍵と設定</h2>
+<p>一覧画面の右上の <b>鍵と設定</b> を押すと開きます。</p>
+<figure class="half"><img src="images/11-keys-settings.png" alt="鍵と設定"><figcaption>上から、登録済みの解錠方法・設定・診断情報。</figcaption></figure>
+<table>
+<tr><th>操作</th><th>使う場面と手順</th></tr>
+<tr><td>＋ 鍵ファイルを追加</td><td>USB メモリを失くした・予備をもう 1 本作りたいとき。パスワード（10 文字以上）→ 保存先 → 作成 → QR 印刷</td></tr>
+<tr><td>＋ この PC の TPM を登録</td><td>PC を買い替えた・TPM をクリアした・PIN を忘れたとき。新しい PIN を入力。既存の TPM の登録は置き換わります</td></tr>
+<tr><td>復旧コードを作り直す</td><td>紙を失くした・人に見られたかもしれないとき。新しいコードを書き写して確認すると、古いコードは使えなくなります</td></tr>
+<tr><td>選んだ方法を削除</td><td>失くした鍵ファイルなどを無効にするとき。一覧で選んで削除。「復旧コード＋ほかに 1 つ以上」が残らなくなる削除はできません</td></tr>
+<tr><td>自動ロック（分）</td><td>既定 5 分。1〜120 分</td></tr>
+<tr><td>クリップボードの消去（秒）</td><td>既定 20 秒。5〜300 秒</td></tr>
+<tr><td>詳細ログを記録する</td><td>問題の調査用。オンにしてもパスワードや項目の内容は記録しません</td></tr>
+<tr><td>ログフォルダを開く</td><td>問題が起きたときにログを確認・共有するため</td></tr>
+</table>
+<p>設定はウィンドウを <b>閉じる</b> ときに保存されます。各方法の「最終使用日」で、しばらく使っていない鍵がまだ使えるか（USB メモリが読めるか、紙の保管場所が分かるか）を定期的に確かめてください。</p>
+
+<!-- ============================================================ -->
+<h2 id="trouble">9. 困ったとき</h2>
+<table>
+<tr><th>こんなとき</th><th>どうする</th></tr>
+<tr><td>PIN を忘れた</td><td>鍵ファイルか復旧コードで開き、<b>この PC の TPM を登録</b> で新しい PIN を設定</td></tr>
+<tr><td>「TPM がロックされています」</td><td>しばらく待つ（失敗回数は時間で減ります）か、鍵ファイル・復旧コードで開く</td></tr>
+<tr><td>PC を買い替えた・Windows を入れ直した</td><td>保管ファイル（vault.pwmv）を新しい PC の <code>%LOCALAPPDATA%\NewPWManageTool\</code> に置き、アプリをインストール。鍵ファイルか復旧コードで開き、TPM を登録し直す</td></tr>
+<tr><td>USB メモリを失くした</td><td>PIN か復旧コードで開き、失くした鍵ファイルを <b>選んだ方法を削除</b> → <b>鍵ファイルを追加</b> で作り直す</td></tr>
+<tr><td>「この鍵ファイルは、この保管ファイル用ではありません」</td><td>別の保管ファイル用の鍵ファイルです。正しい鍵ファイルを選ぶ</td></tr>
+<tr><td>項目を誤って削除した・前の状態に戻したい</td><td>アプリは保存のたびに、保存する前の保管ファイルを自動でバックアップしています（同じフォルダの <code>vault.pwmv.bak1</code>〜<code>.bak5</code>。<code>.bak1</code> が直前の保存の前、数字が大きいほど古い）。アプリを閉じ、今の <code>vault.pwmv</code> を別名（例: <code>vault.pwmv.now</code>）に変えてから、戻したい時点のバックアップを <code>vault.pwmv</code> という名前でコピーして開き直す。<b>その時点より後に追加・変更した項目も元に戻る</b>ため、必要な項目は控えておく。バックアップの一覧と日時は診断ツールの <code>pwm backups</code> で確認できます</td></tr>
+<tr><td>保管ファイルが壊れた・改ざんされたと表示される</td><td>上の「前の状態に戻したい」と同じ手順で、<code>vault.pwmv.bak1</code> から順に開けるものを探す（元のファイルは別名で残しておく）</td></tr>
+<tr><td>「予期しないエラーが発生しました。ロックしました。」</td><td>「ログフォルダを開く」でログを確認。続けて使う場合は「続ける」→ 解錠し直す</td></tr>
+<tr><td>2 つ目のアプリが起動しない</td><td>同じ保管ファイルを開くアプリは 1 つだけです。すでに開いているウィンドウが前面に出ます</td></tr>
+<tr><td>スクリーンショットにアプリが写らない</td><td>仕様です。パスワードが画面共有や録画に写らないよう、アプリの画面はキャプチャから除外しています</td></tr>
+</table>
+<h3>診断ツール pwm</h3>
+<p>パスワードを入力せずに状態を調べられます。インストール先の <code>cli\pwm.exe</code>（<code>-AddToPath</code> を付けた場合は <code>pwm</code> だけで実行可）。</p>
+<table>
+<tr><th>コマンド</th><th>表示する内容</th></tr>
+<tr><td><code>pwm diag tpm</code></td><td>TPM が使えるか、失敗回数（ロックまでの残り）</td></tr>
+<tr><td><code>pwm diag vault</code></td><td>保管ファイルの形式・保存回数・登録されている解錠方法</td></tr>
+<tr><td><code>pwm backups</code></td><td>世代バックアップの一覧</td></tr>
+<tr><td><code>pwm logs --days 7</code></td><td>直近のエラー・警告の件数</td></tr>
+<tr><td><code>pwm bench argon2</code></td><td>鍵の計算にかかる時間</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="uninstall">10. アンインストール</h2>
+<p>次のどれかを実行します。</p>
+<pre><code>%LOCALAPPDATA%\Programs\Secrypt\uninstall.cmd   （インストール先にあります）
+setup.cmd -Uninstall                                      （配布フォルダから）
+scripts\install.cmd -Uninstall                            （ソースから）</code></pre>
+<p>アプリ本体・ショートカット・PATH の登録を削除します。<b>パスワードのデータ（<code>%LOCALAPPDATA%\NewPWManageTool</code>）は削除しません。</b>完全に消したいときは、中身が不要なことを確かめてから、このフォルダを自分で削除してください。</p>
+
+<!-- ============================================================ -->
+<h2 id="shortcuts">付録　キー操作</h2>
+<table>
+<tr><th>キー</th><th>働き</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>検索欄へ</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>新規登録</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>保存</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>ロック</td></tr>
+<tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>Home</kbd> <kbd>End</kbd></td><td>一覧の移動（未保存の変更があれば確認）</td></tr>
+<tr><td><kbd>Enter</kbd></td><td>解錠画面で解錠</td></tr>
+</table>
+
+<footer>Secrypt Ver. 1.01A · 2026-11-01 · 画面写真は試験用データで撮影（Debug ビルド・キャプチャ許可）。仕様の詳細は docs/08-ui-spec.md を参照。</footer>
+</main>
+</div>
+<div class="lightbox" id="lb"><img alt=""></div>
+<script>
+(function(){
+  var lb=document.getElementById('lb'), im=lb.querySelector('img');
+  document.querySelectorAll('figure img').forEach(function(i){
+    i.addEventListener('click',function(){im.src=i.src;im.alt=i.alt;lb.classList.add('on');});
+  });
+  lb.addEventListener('click',function(){lb.classList.remove('on');});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('on');});
+})();
+</script>
+</body>
+</html>

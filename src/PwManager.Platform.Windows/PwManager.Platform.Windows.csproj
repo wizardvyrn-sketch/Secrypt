@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- Linux の CI でもビルドできるようにする（実行は Windows のみ） -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>PwManager.Platform.Windows</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.TSS" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PwManager.Core\PwManager.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PwManager.Platform.Windows.Tests" />
+  </ItemGroup>
+
+</Project>

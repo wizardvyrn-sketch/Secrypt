@@ -1,0 +1,132 @@
+<Window x:Class="PwManager.App.Views.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Secrypt" Width="600" Height="340"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent" Opacity="0" Topmost="True"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+    <!--
+      起動時ロゴ画面（08 §1.1）。SPIRE デザインシステム（巨大企業の社内端末風）の配色・書体で組む。
+      アプリ本体のテーマ（Themes/Colors.xaml）とは別で、色・書体はこの画面の中だけで定義する。
+      - 地は void、枠は steel、背景に hairline の 16px 方眼。角は丸めない。
+      - corp-red のヘッダーバー、光るものは reactor の進捗線 1 本だけ。
+      - 書体: 見出し Oxanium、ラベル・数値 Share Tech Mono（Fonts/ に同梱）。
+    -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="Void" Color="#07090B"/>
+        <SolidColorBrush x:Key="Hairline" Color="#263039"/>
+        <SolidColorBrush x:Key="Steel" Color="#5F6C79"/>
+        <SolidColorBrush x:Key="Ink" Color="#E6ECEF"/>
+        <SolidColorBrush x:Key="Muted" Color="#8D9AA5"/>
+        <SolidColorBrush x:Key="CorpRed" Color="#C8102E"/>
+        <SolidColorBrush x:Key="Reactor" Color="#3DFFB0"/>
+        <FontFamily x:Key="Display">pack://application:,,,/Fonts/#Oxanium</FontFamily>
+        <FontFamily x:Key="Mono">pack://application:,,,/Fonts/#Share Tech Mono</FontFamily>
+
+        <!-- SPIRE の label: 等幅・大文字・12px -->
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Mono}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- 進捗線が伸びきるまで。終わると BootCompleted -->
+        <Storyboard x:Key="Boot">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.2"/>
+            <DoubleAnimation Storyboard.TargetName="ProgressScale" Storyboard.TargetProperty="ScaleX"
+                             From="0" To="1" BeginTime="0:0:0.15" Duration="0:0:1.2">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseInOut"/>
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Window.Resources>
+
+    <Border Background="{StaticResource Void}" BorderBrush="{StaticResource Steel}" BorderThickness="1">
+        <Grid>
+            <!-- 背景の 16px 方眼 -->
+            <Rectangle Opacity="0.55">
+                <Rectangle.Fill>
+                    <DrawingBrush TileMode="Tile" Viewport="0,0,16,16" ViewportUnits="Absolute" Viewbox="0,0,16,16" ViewboxUnits="Absolute">
+                        <DrawingBrush.Drawing>
+                            <GeometryDrawing Brush="{StaticResource Hairline}">
+                                <GeometryDrawing.Geometry>
+                                    <GeometryGroup>
+                                        <RectangleGeometry Rect="0,0,16,1"/>
+                                        <RectangleGeometry Rect="0,0,1,16"/>
+                                    </GeometryGroup>
+                                </GeometryDrawing.Geometry>
+                            </GeometryDrawing>
+                        </DrawingBrush.Drawing>
+                    </DrawingBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="44"/>
+                </Grid.RowDefinitions>
+
+                <!-- ヘッダーバー -->
+                <Grid Grid.Row="0" Background="{StaticResource CorpRed}">
+                    <StackPanel Orientation="Horizontal" Margin="16,0,0,0">
+                        <TextBlock Text="SECRYPT" FontFamily="{StaticResource Display}" FontWeight="Bold" FontSize="13"
+                                   Foreground="{StaticResource Ink}" VerticalAlignment="Center"/>
+                        <TextBlock Text="//  LOCAL CREDENTIAL VAULT" Style="{StaticResource Label}" Margin="12,0,0,0"
+                                   Foreground="{StaticResource Ink}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="ClockText" Text="TERMINAL 01 // 00:00" Style="{StaticResource Label}"
+                               Foreground="{StaticResource Ink}" HorizontalAlignment="Right" Margin="0,0,16,0"/>
+                </Grid>
+
+                <!-- ワードマーク -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="SECURE ENCLAVE  //  TPM-BOUND" Style="{StaticResource Label}" HorizontalAlignment="Center"/>
+                    <!-- 字間を広げるため 1 文字ずつ並べる（ItemsSource はコードで設定） -->
+                    <ItemsControl x:Name="Wordmark" Margin="0,10,0,0" HorizontalAlignment="Center" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Margin="3,0" FontFamily="{StaticResource Display}" FontWeight="Bold"
+                                           FontSize="64" Foreground="{StaticResource Ink}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <!-- 進捗線（この画面で光るのはこれだけ） -->
+                    <Grid Width="380" Height="2" Margin="0,14,0,0">
+                        <Rectangle Fill="{StaticResource Hairline}"/>
+                        <Rectangle Fill="{StaticResource Reactor}" RenderTransformOrigin="0,0.5">
+                            <Rectangle.RenderTransform>
+                                <ScaleTransform x:Name="ProgressScale" ScaleX="0"/>
+                            </Rectangle.RenderTransform>
+                            <Rectangle.Effect>
+                                <DropShadowEffect Color="#3DFFB0" BlurRadius="12" ShadowDepth="0" Opacity="0.45"/>
+                            </Rectangle.Effect>
+                        </Rectangle>
+                    </Grid>
+                    <TextBlock Text="AUTHORIZED PERSONNEL ONLY" Style="{StaticResource Label}" Margin="0,12,0,0"
+                               FontSize="14" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- ステータス行 -->
+                <Border Grid.Row="2" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Background="{StaticResource Void}">
+                    <Grid Margin="16,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource Reactor}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="StatusText" Text="STATUS // INITIALIZING" Style="{StaticResource Label}"
+                                       Foreground="{StaticResource Ink}" Margin="10,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="XCHACHA20-POLY1305 // ARGON2ID" Style="{StaticResource Label}" HorizontalAlignment="Right"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows: 全プロジェクト（実機 TPM が必要なテストは除外）
+          - os: windows-latest
+            test_targets: PwManager.slnx
+          # Linux: OS 非依存の Core・Application（業務フロー・画面の ViewModel・CLI）をテスト（Windows 向けはビルドのみ）
+          - os: ubuntu-latest
+            test_targets: tests/PwManager.Core.Tests/PwManager.Core.Tests.csproj tests/PwManager.Application.Tests/PwManager.Application.Tests.csproj
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore PwManager.slnx
+
+      - name: Build
+        run: dotnet build PwManager.slnx -c Release --no-restore
+
+      - name: Test
+        shell: bash
+        run: |
+          for t in ${{ matrix.test_targets }}; do
+            dotnet test "$t" -c Release --no-build --filter "Category!=Hardware" --logger "trx" --results-directory TestResults || exit 1
+          done
+
+      - name: Summarize test results
+        if: always()
+        shell: bash
+        run: |
+          read total passed failed < <(grep -ho '<Counters [^>]*>' TestResults/*.trx | \
+            sed -E 's/.*total="([0-9]+)".*passed="([0-9]+)" failed="([0-9]+)".*/\1 \2 \3/' | \
+            awk '{t+=$1; p+=$2; f+=$3} END {print t+0, p+0, f+0}')
+          echo "::notice title=Tests (${{ matrix.os }})::total=${total} passed=${passed} failed=${failed}"
+          echo "### Tests (${{ matrix.os }}): total=${total} passed=${passed} failed=${failed}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$total" = "0" ]; then echo "::error::テストが 1 件も実行されていません"; exit 1; fi

@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>デバッグ結果書（2026-10-25）</title>
+<style>
+:root {
+  --bg: #ffffff; --text: #1d2a30; --muted: #5b6b72; --line: #d5dee2; --head: #eef4f6; --accent: #0f7c73; --code: #f3f6f7;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1a20; --text: #dcebef; --muted: #8ea9b3; --line: #28434e; --head: #14252d; --accent: #4fd1c5; --code: #14252d;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1a20; --text: #dcebef; --muted: #8ea9b3; --line: #28434e; --head: #14252d; --accent: #4fd1c5; --code: #14252d;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", "Meiryo", sans-serif;
+  font-size: 15px; line-height: 1.75;
+}
+main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.6em; border-bottom: 3px solid var(--accent); padding-bottom: .3em; }
+h2 { font-size: 1.3em; margin-top: 2.2em; border-left: 4px solid var(--accent); padding-left: .5em; }
+h3 { font-size: 1.1em; margin-top: 1.6em; }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
+a { color: var(--accent); }
+.table-wrap { overflow-x: auto; margin: 1em 0; }
+table { border-collapse: collapse; width: 100%; font-size: .92em; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; vertical-align: top; text-align: left; }
+th { background: var(--head); white-space: nowrap; }
+code { font-family: Consolas, "BIZ UDGothic", monospace; background: var(--code); padding: .1em .35em; border-radius: 4px; font-size: .92em; }
+pre { background: var(--code); padding: 12px 14px; border-radius: 6px; overflow-x: auto; line-height: 1.5; }
+pre code { background: none; padding: 0; }
+blockquote { margin: 1em 0; padding: .2em 1em; border-left: 4px solid var(--line); color: var(--muted); }
+.source { color: var(--muted); font-size: .85em; margin-top: 3em; }
+@media print { body { font-size: 11pt; } .table-wrap { overflow: visible; } }
+</style>
+</head>
+<body>
+<main>
+<h1>デバッグ結果書（リファクタリング R0〜R6・利用シーン別テスト）</h1>
+<ul>
+<li>日付: 2026-10-25</li>
+<li>対象: ブランチ <code>claude/tender-bell-baapwt</code>（PR #4 の構造検討書 docs/09 に基づくリファクタリング）</li>
+<li>前提の決定: D-1〜D-5 はすべて推奨案で確定（R0 を先に行う／CommunityToolkit.Mvvm／Microsoft.Extensions.DependencyInjection／ログのパスはユーザー名を伏せる／本体形式 v2 は R5）</li>
+<li>実施環境: Linux（Ubuntu 24.04）、.NET SDK 10.0.113。Windows・WPF の実行と実機 TPM は、同日夜に Windows 11 実機で確認した（§7）</li>
+</ul>
+<hr />
+<h2>1. まとめ</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>リファクタリング</td>
+<td>R0〜R6 を実施。未実施は R-09（<code>ISlotProvider</code>）と R-11（文言の resx 化）の一部（§6）</td>
+</tr>
+<tr>
+<td>自動テスト</td>
+<td><strong>135 件すべて合格</strong>（Core 50 件 ＋ Application 85 件。Linux）。<strong>Windows（GitHub Actions windows-latest）でも 137 件すべて合格</strong>（＋ Platform.Windows の単体 2 件、実機 TPM のテストは除外）。以前は Core 40 件のみで、アプリ側はテストがなかった</td>
+</tr>
+<tr>
+<td>利用シーン</td>
+<td>27 のシナリオを想定してテストを作った（§3）。全テストの終了時に、ログと設定ファイルに秘密が出ていないことを検査（カナリア）</td>
+</tr>
+<tr>
+<td>見つかった不具合</td>
+<td><strong>21 件</strong>（§5）。うち 2 件（B-20・B-21）は Windows 実機確認で発見し修正済み。以下は Linux での作業分: 構造検討書の 4 件のほか、利用シーンの想定・テスト・手動デバッグで <strong>15 件</strong>を新たに発見。18 件は修正済み、1 件（テストのまれな失敗）は原因未特定だが、テスト補助の修正後は再現なし</td>
+</tr>
+<tr>
+<td>手動デバッグ</td>
+<td>本番と同じ KDF 設定でサービスを通しで動かし、所要時間・保存ファイル・ログ・<code>pwm</code> の出力を確認（§4）</td>
+</tr>
+<tr>
+<td>Windows 実機確認（§7）</td>
+<td><strong>15 項目を実施</strong>（2026-10-25 夜、Windows 11 実機・AMD fTPM）。13 項目 OK、2 項目は一部のみ確認（W-06・W-10）。実機で <strong>不具合 2 件</strong>（B-20・B-21）を見つけて修正し、修正後に再確認済み。手元の全テスト 142 件（実機 TPM 4 件を含む）合格</td>
+</tr>
+<tr>
+<td>未確認</td>
+<td>OS の画面ロック（Win+L）・スリープ通知による自動ロック、処理中の覆いの目視（§7.2）</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2>2. テストパターンのレビュー（着手前）</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>観点</th>
+<th>着手前の状態</th>
+<th>不足</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>暗号・形式・スロット（Core）</td>
+<td>40 件。往復・改ざん検知・ポリシー</td>
+<td>保存失敗時の扱い、形式の互換性、パスワード強さの計算</td>
+</tr>
+<tr>
+<td>業務フロー（初期設定・解錠・編集・取り込み・スロット管理）</td>
+<td><strong>なし</strong>（コードビハインドにあり、テスト不能）</td>
+<td>ほぼすべて</td>
+</tr>
+<tr>
+<td>失敗時の振る舞い（保存失敗・USB 抜け・TPM ロック・別 PC で更新）</td>
+<td>なし</td>
+<td>すべて</td>
+</tr>
+<tr>
+<td>自動ロックと処理の競合、未保存の編集</td>
+<td>なし（R-02・R-03 の不具合のまま）</td>
+<td>すべて</td>
+</tr>
+<tr>
+<td>複数台の PC・PC 買い替え・TPM クリア</td>
+<td>なし</td>
+<td>すべて</td>
+</tr>
+<tr>
+<td>ログに秘密が出ないこと</td>
+<td>ログ自体がない</td>
+<td>仕組みと検査</td>
+</tr>
+<tr>
+<td>画面の状態遷移</td>
+<td>手動確認 8 項目のみ（docs/test/2026-10-25-app-manual-check.md）</td>
+<td>自動化できる部分</td>
+</tr>
+</tbody>
+</table></div>
+<p>対応: 業務フローを Application 層（OS・UI 非依存）、画面の状態を ViewModel（WPF 非依存）に移し、どちらも Linux でテストできるようにした。</p>
+<hr />
+<h2>3. 利用シーンとテストの対応</h2>
+<p>テストは <code>tests/PwManager.Application.Tests</code>。1 テスト＝1 つの「世界」（一時フォルダ、日本時間の模擬時計、PC ごとの模擬 TPM、USB メモリのフォルダ）で、
+2 台の PC が同じ Vault を開く（同期フォルダ）状況も作れる。保存・鍵ファイルの書き込みには失敗を差し込める。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>利用シーン</th>
+<th>確認した内容</th>
+<th>テスト</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S01</td>
+<td>初回起動・TPM ありで初期設定</td>
+<td>3 つの解錠方法が登録され、再起動後は PIN が既定で開ける</td>
+<td>SetupScenarioTests.S01</td>
+</tr>
+<tr>
+<td>S02</td>
+<td>TPM のない PC で初期設定</td>
+<td>鍵ファイル＋復旧コードのみ、PIN タブは出ない</td>
+<td>S02</td>
+</tr>
+<tr>
+<td>S03</td>
+<td>初期設定を途中でやめる</td>
+<td>Vault を作らず、使われない鍵ファイルの場所も覚えない。次回やり直せる</td>
+<td>S03</td>
+</tr>
+<tr>
+<td>S04</td>
+<td>2 つのウィンドウで同時に初期設定</td>
+<td>後から完了した方は既存の Vault を上書きしない</td>
+<td>S04</td>
+</tr>
+<tr>
+<td>S05</td>
+<td>毎日の利用（PIN で開いて追加・ロック・開き直す）</td>
+<td>内容が残る</td>
+<td>UnlockScenarioTests.S05</td>
+</tr>
+<tr>
+<td>S06</td>
+<td>PIN を続けて間違える／TPM がロックされる</td>
+<td>3 回目から待ち時間（15 秒→30 秒）。待ち時間中は TPM に問い合わせない。TPM ロック中でも鍵ファイル・復旧コードで開ける</td>
+<td>S06, S06b</td>
+</tr>
+<tr>
+<td>S07</td>
+<td>1 日に何度も解錠する</td>
+<td>バックアップが押し出されない。日付が変わったときだけ最終使用日を記録（バックアップは回さない）。読み取り専用のメディアでも解錠はできる</td>
+<td>S07, S07b</td>
+</tr>
+<tr>
+<td>S08</td>
+<td>USB メモリを紛失</td>
+<td>復旧コードで開き、古い鍵ファイルを削除して新しく作る。紛失した鍵ファイル（のコピー）では開けない</td>
+<td>SlotScenarioTests.S08</td>
+</tr>
+<tr>
+<td>S09</td>
+<td>鍵ファイルの取り違え</td>
+<td>USB 未挿入・壊れたファイル・CSV を選んだ・別の Vault 用・パスワード違いを見分ける。QR のテキスト（小文字・空白入り）でも開ける</td>
+<td>UnlockScenarioTests.S09 ×4</td>
+</tr>
+<tr>
+<td>S10</td>
+<td>PC の買い替え・2 台目の PC</td>
+<td>新しい PC では PIN タブを無効にして案内。鍵ファイルで開いてこの PC の TPM を登録しても、古い PC のスロットは残る。後で削除できる。同じ PC での再登録は PIN の変更になる</td>
+<td>S10, S10b</td>
+</tr>
+<tr>
+<td>S11</td>
+<td>TPM のクリア（BIOS 更新など）</td>
+<td>PIN では開けないと案内し、再登録で開ける。クリア前のスロットは「この PC ではない」と表示</td>
+<td>S11</td>
+</tr>
+<tr>
+<td>S12</td>
+<td>復旧コードの書き間違い・作り直し</td>
+<td>小文字・O/0・区切りの揺れは許容、1 文字違いはチェックサムで検出（鍵の間違いとは数えない）。作り直すと古いコードは無効</td>
+<td>UnlockScenarioTests.S12, SlotScenarioTests.S12</td>
+</tr>
+<tr>
+<td>S13</td>
+<td>鍵ファイル作成中に自動ロックの時間が来る・画面ロック</td>
+<td>完了してからロックし、登録は保存されている</td>
+<td>LockAndEntryScenarioTests.S13</td>
+</tr>
+<tr>
+<td>S14</td>
+<td>保存に失敗（ディスク満杯・アクセス拒否）</td>
+<td>新規・更新・削除ともメモリ上も元に戻り、保存回数も進まない</td>
+<td>S14</td>
+</tr>
+<tr>
+<td>S15</td>
+<td>同期フォルダの Vault を 2 台で開く</td>
+<td>別の PC で更新された後の保存は上書きせず知らせる。解錠しただけの PC があっても、もう一方は保存できる</td>
+<td>S15</td>
+</tr>
+<tr>
+<td>S16</td>
+<td>Chrome / Edge のパスワードを取り込む</td>
+<td>BOM・引用符・改行入りのメモ・Android アプリ・空のパスワード・CSV 内の重複・登録済みとの重複／パスワード違い・キャンセル・保存失敗・CSV の削除</td>
+<td>ImportScenarioTests ×6</td>
+</tr>
+<tr>
+<td>S17</td>
+<td>解錠方法を減らしすぎる</td>
+<td>復旧コードと最後の 1 つは削除できない（ファイルも変わらない）</td>
+<td>SlotScenarioTests.S17</td>
+</tr>
+<tr>
+<td>S18</td>
+<td>ファイルの破損・改ざん</td>
+<td>途中で切れた（同期の中断）・1 ビット改ざん・ファイルなしを見分け、バックアップから戻せる</td>
+<td>UnlockScenarioTests.S18</td>
+</tr>
+<tr>
+<td>S19</td>
+<td>使用中の鍵ファイルの上に新しい鍵ファイルを作ろうとする</td>
+<td>止める（失効済みの鍵ファイルの上なら作れる）</td>
+<td>SlotScenarioTests.S19</td>
+</tr>
+<tr>
+<td>S20</td>
+<td>ログに秘密が出ない</td>
+<td>全テストの終了時に、ログ・設定ファイルに PIN・パスワード・復旧コード・鍵ファイルのテキスト・項目のパスワードがないことを検査。検査が働くこと自体もテスト</td>
+<td>TestWorld.Dispose, InfrastructureTests</td>
+</tr>
+<tr>
+<td>S21</td>
+<td>パスワード生成</td>
+<td>強さの目安を実際の文字数で計算、生成できない設定では目安を出さない</td>
+<td>Core RefactoringSupportTests, ViewModelScenarioTests</td>
+</tr>
+<tr>
+<td>S22</td>
+<td>設定ファイルの破損・手で編集した範囲外の値</td>
+<td>既定値に戻す。保存できなくても続行</td>
+<td>InfrastructureTests</td>
+</tr>
+<tr>
+<td>S23</td>
+<td>多重起動</td>
+<td>Vault ごとの名前付き Mutex（App。<strong>Windows で要確認</strong>）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>S24</td>
+<td>古い形式（v1）のファイル・新しい版の項目</td>
+<td>v1 を開けて次の保存で v2。知らない項目を保持して書き戻す。壊れた本体は形式エラー（簡易ファジング 2000 回）</td>
+<td>Core EntryFormatV2Tests</td>
+</tr>
+<tr>
+<td>S25</td>
+<td>「開けない」と言われたときの調査</td>
+<td><code>pwm diag vault</code> / <code>backups</code> / <code>logs</code> / <code>diag tpm</code>。秘密を表示しない、壊れたファイルでも理由を出す</td>
+<td>CliTests</td>
+</tr>
+<tr>
+<td>S26</td>
+<td>無操作による自動ロック</td>
+<td>5 分で自動ロック、操作があれば延びる、ロック後は操作できない</td>
+<td>LockAndEntryScenarioTests.S26</td>
+</tr>
+<tr>
+<td>S27</td>
+<td>ロック時の後始末</td>
+<td>クリップボードと、画面が持っている項目のパスワードを消す。子ウィンドウ・ダイアログを閉じる</td>
+<td>S27, ViewModelScenarioTests</td>
+</tr>
+</tbody>
+</table></div>
+<p>画面（ViewModel）を通したシナリオ（ViewModelScenarioTests、15 件）:
+初期設定の全手順、PIN 違いと待ち時間の表示、鍵ファイルタブ（前回の場所・QR テキスト）、編集中の選択変更（保存／破棄／戻る）、編集中の新規、手動ロックの確認と自動ロックでの破棄、保存失敗の表示、パスワード生成・コピー・URL を開く（http(s) 以外は開かない）、取り込みの確認画面、「鍵と設定」の全操作、処理中に閉じる、PC 買い替え後の解錠画面、壊れた Vault の解錠画面、依存の組み立ての検証、開発用設定。</p>
+<h3>3.1 実行結果</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>テスト</th>
+<th>件数</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tests/PwManager.Core.Tests</td>
+<td>50</td>
+<td>すべて合格</td>
+</tr>
+<tr>
+<td>tests/PwManager.Application.Tests</td>
+<td>85</td>
+<td>すべて合格</td>
+</tr>
+<tr>
+<td>tests/PwManager.Platform.Windows.Tests</td>
+<td>6（うち実機 TPM 4）</td>
+<td>単体 2 件は Windows CI で合格。実機 TPM の 4 件は<strong>未実行</strong>（TPM のある PC が必要）。<code>IsSealedOnThisDevice</code> のテストを実機 1 件・単体 1 件追加</td>
+</tr>
+</tbody>
+</table></div>
+<p>Windows での実行（PR #5 の CI、2026-10-25、commit 683cb55、windows-latest）: ソリューション全体（WPF の App・XAML を含む）のビルドが成功。
+Core 50 件・Platform.Windows 単体 2 件・Application 85 件の計 <strong>137 件すべて合格</strong>（実機 TPM のテストは除外）。Linux ジョブも合格。
+WPF の画面を実際に表示・操作する確認は CI では行えないため、§7 の項目は引き続き未確認。</p>
+<p>安定性: Application のテストを繰り返し実行した。処理中の状態を作るゲートを入れた直後の 10 回で 2 回失敗（B-19）。その後の 84 回（2 プロセス同時の 24 回、前の書き込みの合図を消す修正の後の 20 回を含む）はすべて合格。</p>
+<hr />
+<h2>4. 手動デバッグ（本番と同じ KDF 設定での通し実行）</h2>
+<p>リポジトリ外の小さなプログラムで、Application 層のサービスを本番の設定（鍵ファイル: Argon2id 256 MiB × 3、PIN・復旧コード: 64 MiB × 2）で動かした。
+TPM はソフトウェアで模擬（Linux のため）。所要時間はこのコンテナでの値で、利用者の PC では異なる。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>操作</th>
+<th>所要時間</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STEP 1 TPM 封印（PIN）</td>
+<td>163 ms</td>
+</tr>
+<tr>
+<td>STEP 2 鍵ファイル作成</td>
+<td>806 ms</td>
+</tr>
+<tr>
+<td>STEP 3 復旧コード作成</td>
+<td>121 ms</td>
+</tr>
+<tr>
+<td>保存して解錠</td>
+<td>57 ms</td>
+</tr>
+<tr>
+<td>CSV 500 件の解析 → 取り込みの保存</td>
+<td>30 ms → 26 ms</td>
+</tr>
+<tr>
+<td>項目の更新保存 20 回（合計）</td>
+<td>131 ms（1 回あたり約 7 ms）</td>
+</tr>
+<tr>
+<td>PIN で解錠</td>
+<td>162 ms</td>
+</tr>
+<tr>
+<td>鍵ファイルで解錠</td>
+<td>739 ms</td>
+</tr>
+<tr>
+<td>復旧コード（小文字・空白区切り）で解錠</td>
+<td>122 ms</td>
+</tr>
+<tr>
+<td>PIN 間違い</td>
+<td>126 ms → WrongPin</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>500 件のファイルサイズは 89 KB。保存は 10 ms 程度で、項目の保存に処理中の覆いを出さない判断は妥当。</li>
+<li>ログ 88 行。操作 ID で「UnlockStarted → SaveCompleted（最終使用日、counter 22 のまま・バックアップなし）→ SlotUseRecorded → UnlockSucceeded」を追えることを確認。</li>
+<li>ログ・設定ファイルを PIN・パスワード・復旧コード（区切りあり／なし）で検索 → <strong>見つからない</strong>。設定ファイルにあるのは鍵ファイルの場所（パス）だけ。</li>
+</ul>
+<p><code>pwm</code> の出力（抜粋）:</p>
+<pre><code>$ pwm diag vault
+状態: ヘッダを読めました（ファイル形式 v1）
+※ 鍵を使わないため、改ざんの検知（MAC の検証）と、暗号化された本体（項目・本体の形式の版）の確認はできません。
+保存回数: 22
+解錠方法: 3 件  ·  方針（復旧コード＋他 1 つ以上）: OK
+  - Tpm      f50d4198-…  「TPM + PIN」  登録 2026-10-25  最終使用 2026-10-25  KDF 64 MiB × 2
+  - Keyfile  26629aed-…  「鍵ファイル（USB）+ パスワード」  …  KDF 256 MiB × 3
+  - Recovery 113b93ba-…  「復旧コード」  …  KDF 64 MiB × 2
+$ pwm backups
+  現在  保存回数 22 / .bak1 21 / .bak2 20 / .bak3 19 / .bak4 18 / .bak5 17
+$ pwm logs
+  88 行
+     1 件  Warning 2201 UnlockFailed (WrongPin)
+</code></pre>
+<p>手動デバッグで気づいた点:
+- <code>pwm diag vault</code> の「形式 v1」が本体形式（v2）と紛らわしい → 「ファイル形式 v1」に変え、本体は確認できない旨を明記（B-18）。
+- 20 回続けて保存すると、取り込み前の状態のバックアップが残らない（世代数 5 のため）。仕様どおりだが、手書きメモから続けて登録する使い方（F7b）では早く押し出される → 改善提案 P-03。</p>
+<hr />
+<h2>5. 見つかった不具合と対応</h2>
+<p>発見: 検＝構造検討書（docs/09）、想＝利用シーンの想定とコードの読み直し、テ＝自動テスト、手＝手動デバッグ、実＝Windows 実機確認（§7）。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>発見</th>
+<th>内容</th>
+<th>影響</th>
+<th>対応</th>
+<th>確認</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B-01</td>
+<td>検（R-02）</td>
+<td>鍵ファイル作成などの処理中に自動ロックがかかると、破棄後の Vault に書き込む</td>
+<td>例外・登録の消失</td>
+<td>ロックを処理の完了まで保留（R0 で暫定、R2 で VaultSession に移管）</td>
+<td>S13</td>
+</tr>
+<tr>
+<td>B-02</td>
+<td>検（R-03）</td>
+<td>編集中に別の項目を選ぶ・新規・ロックで、変更が警告なく消える</td>
+<td>入力の消失</td>
+<td>「保存／破棄／戻る」を確認。自動ロックでは破棄して記録</td>
+<td>ViewModel ×3</td>
+</tr>
+<tr>
+<td>B-03</td>
+<td>検（R-04）</td>
+<td>保存に失敗してもメモリ上は変更済み（削除は次の保存で確定）。保存回数も書き込み前に増える</td>
+<td>削除の意図しない確定</td>
+<td>変更前に戻す仕組み（VaultCheckpoint）、保存回数は書き込み成功後に確定</td>
+<td>S14</td>
+</tr>
+<tr>
+<td>B-04</td>
+<td>検（R-15）</td>
+<td>解錠のたびに保存してバックアップを回すため、5 回の解錠で変更前のバックアップが消える</td>
+<td>復元不能</td>
+<td>最終使用日は日付が変わったときだけ、バックアップを回さずに記録</td>
+<td>S07</td>
+</tr>
+<tr>
+<td>B-05</td>
+<td>想</td>
+<td>ロック後も「鍵と設定」やダイアログが開いたまま。<strong>復旧コードの表示が画面に残る</strong></td>
+<td>秘密の露出</td>
+<td>ロック時に子ウィンドウ・ダイアログをすべて閉じる（R0 から）</td>
+<td>ViewModel</td>
+</tr>
+<tr>
+<td>B-06</td>
+<td>想</td>
+<td>PC 買い替え・TPM クリア後に PIN で解錠すると「TPM がクリアされた可能性」と誤った案内。2 台目の PC で TPM を登録すると 1 台目の TPM スロットを消す（docs/03「PC ごとに 1 つ」と矛盾）</td>
+<td>2 台目で使えない・誤案内</td>
+<td>blob がこの PC の TPM のものかを PIN なしで判定（<code>ITpmSealer.IsSealedOnThisDevice</code>）。PIN はこの PC のスロットだけで試し、登録はこの PC のスロットだけを置き換える。画面で「この PC／他の PC」と表示</td>
+<td>S10, S10b, S11</td>
+</tr>
+<tr>
+<td>B-07</td>
+<td>テ（S15）</td>
+<td>解錠しただけで保存回数が進むため、同期フォルダの Vault を別の PC で開くと、先に開いていた PC が保存できなくなる</td>
+<td>2 台利用で保存不能</td>
+<td>内容の変わらない保存（最終使用日）は保存回数を進めない</td>
+<td>S15</td>
+</tr>
+<tr>
+<td>B-08</td>
+<td>テ（画面）</td>
+<td>初期設定の完了通知で画面が切り替わる際、渡したばかりの Vault を初期設定の後始末が破棄する（MVVM 化の途中で混入）</td>
+<td>設定直後に使えない</td>
+<td>Vault の所有権を移してから通知する</td>
+<td>ViewModel</td>
+</tr>
+<tr>
+<td>B-09</td>
+<td>テ（Core）</td>
+<td>保存内容の確定（CommitSave）が、間に別の保存があった古い内容も受け付ける（新規コード）</td>
+<td>保存回数の食い違い</td>
+<td>作成時の保存回数を記録して照合</td>
+<td>Core</td>
+</tr>
+<tr>
+<td>B-10</td>
+<td>想</td>
+<td>パスワード強さの目安の計算誤り（例: 数字のみ＋紛らわしい文字を除く → 実際は 8 種を 4 種で計算。記号セットが英数字と重なると二重に数える）</td>
+<td>誤った目安</td>
+<td>実際に使う文字の集合から計算。生成できない設定では目安を出さない</td>
+<td>Core</td>
+</tr>
+<tr>
+<td>B-11</td>
+<td>想</td>
+<td>取り込みで、登録済みと URL・ユーザー名が同じでパスワードが違う行を黙って捨てていた。CSV 内の同一行は 2 件取り込んでいた</td>
+<td>新しいパスワードの消失</td>
+<td>完全に同じものだけ除外。パスワード違いは取り込んで確認画面で知らせる</td>
+<td>S16</td>
+</tr>
+<tr>
+<td>B-12</td>
+<td>想</td>
+<td>使用中の鍵ファイルの上に新しい鍵ファイルを保存できる。直後の保存に失敗すると、使える鍵ファイルを失う</td>
+<td>解錠手段の喪失</td>
+<td>上書きを拒否</td>
+<td>S19</td>
+</tr>
+<tr>
+<td>B-13</td>
+<td>想</td>
+<td>鍵ファイル追加の保存に失敗すると、登録されていない鍵ファイルが USB に残る</td>
+<td>混乱の元</td>
+<td>保存失敗時に削除</td>
+<td>Slot</td>
+</tr>
+<tr>
+<td>B-14</td>
+<td>想</td>
+<td>処理中にウィンドウを閉じると、書きかけの鍵ファイルが残る</td>
+<td>壊れた鍵ファイル</td>
+<td>完了を待ってから閉じる</td>
+<td>ViewModel</td>
+</tr>
+<tr>
+<td>B-15</td>
+<td>想</td>
+<td>解錠ボタンの連打などで、同じ処理が並行して走る</td>
+<td>TPM 失敗回数の無駄な増加</td>
+<td>排他実行（2 つ目は「実行中」）</td>
+<td>Unlock, Slot</td>
+</tr>
+<tr>
+<td>B-16</td>
+<td>想</td>
+<td>初期設定の完了時に Vault が既にあると上書きする</td>
+<td>既存データの消失</td>
+<td>上書きしない</td>
+<td>S04</td>
+</tr>
+<tr>
+<td>B-17</td>
+<td>想</td>
+<td>「別の Vault の鍵ファイル」と「削除済みの鍵ファイル」が同じ文言</td>
+<td>原因が分からない</td>
+<td>区別して案内</td>
+<td>S09</td>
+</tr>
+<tr>
+<td>B-18</td>
+<td>手</td>
+<td><code>pwm diag vault</code> の「形式 v1」が本体形式と紛らわしい</td>
+<td>調査時の誤解</td>
+<td>表記を変更</td>
+<td>—</td>
+</tr>
+<tr>
+<td>B-20</td>
+<td>実（W-01）</td>
+<td>Windows で <code>ViewModelScenarioTests</code> が毎回 4 件前後失敗。終了時のカナリア検査がログを <code>File.ReadAllText</code>（FileShare.Read）で読み、背景で書き込み中のログと衝突して IOException。<strong><code>pwm logs</code> もアプリの実行中に同じ理由で失敗しうる</strong>。Linux では開いているファイルを読めるため CI では出ない</td>
+<td>テストの失敗、<code>pwm logs</code> の失敗</td>
+<td>読み取り側も <code>FileShare.ReadWrite</code>＋<code>Delete</code> で開く <code>SharedFileReader</code> を追加し、<code>pwm logs</code> とテストで使う</td>
+<td>手元 5 回連続で全件合格</td>
+</tr>
+<tr>
+<td>B-21</td>
+<td>実（W-04）</td>
+<td>未保存の確認で「戻る」を選んでも、一覧の選択が移ったまま（詳細は元の項目のまま）。ViewModel が選択を戻す通知を出しても、WPF の ListBox が自分で変えた選択は戻らなかった（UI Automation で ListBox の選択状態を確認。Dispatcher の ContextIdle で通知し直しても同じ）</td>
+<td>どの項目を編集中か分からない・別の項目と取り違える</td>
+<td>クリック・矢印キーの時点で ListBox の処理を止め、<code>VaultViewModel.TrySelect</code> が確認と選択を行う（「保存する」で一覧が作り直されても ID で選び直す）。ViewModel のテストを追加</td>
+<td>実機で 戻る／破棄（↓キー）を確認</td>
+</tr>
+<tr>
+<td>B-19</td>
+<td>テ</td>
+<td>「処理中」を前提にしたテストがまれに失敗。テストには UI の SynchronizationContext がなく await の続きが別スレッドで進むため、処理が先に終わることがある（S13 で 1 回）。鍵ファイルの書き込みで止めるゲートを入れた直後の 10 回でも 2 回失敗（1 回は 30 秒のゲート待ち）</td>
+<td>テストの信頼性（製品の不具合ではない）</td>
+<td>ゲートで処理中の状態を確実に作る。前の書き込み（初期設定）で立った合図が残り、待たずに進む問題も修正。<strong>2 回の失敗の原因は特定できていない</strong>が、以後 84 回再現なし</td>
+<td>—</td>
+</tr>
+</tbody>
+</table></div>
+<hr />
+<h2>6. リファクタリングの実施状況（docs/09 §4）</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>段階</th>
+<th>状況</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R0</td>
+<td>完了</td>
+<td>B-01・B-02・B-04・B-05 の暫定修正（その後 R2〜R4 で本実装に置き換え）</td>
+</tr>
+<tr>
+<td>R1</td>
+<td>完了</td>
+<td>JSONL ログ（docs/10）、多重起動の防止、未処理例外の記録とロック、<code>PwManager.Application</code> と <code>Application.Tests</code></td>
+</tr>
+<tr>
+<td>R2</td>
+<td>完了</td>
+<td><code>VaultSession</code>（排他・ロック保留・counter 照合・ロールバック）、<code>IVaultStore</code> ほかのポート、DI、<code>AppState</code> 廃止</td>
+</tr>
+<tr>
+<td>R3</td>
+<td>完了</td>
+<td>Unlock / Setup / Slot / Entry / Import をユースケースに移行、<code>CredentialPolicy</code>、結果型（<code>ErrorCode</code>・<code>UnlockResult</code>）と文言表 <code>UserMessages</code></td>
+</tr>
+<tr>
+<td>R4</td>
+<td>完了</td>
+<td><code>PwManager.Presentation</code>（ViewModel）、コードビハインドは表示専用（最大 36 行。MainWindow は OS 連携のため 127 行）</td>
+</tr>
+<tr>
+<td>R5</td>
+<td>一部</td>
+<td>本体形式 v2 と自動移行は完了。<strong>R-09 <code>ISlotProvider</code> は未実施</strong>（FIDO2 は保留機能のため優先度を下げた）</td>
+</tr>
+<tr>
+<td>R6</td>
+<td>一部</td>
+<td>CLI <code>pwm</code>、「鍵と設定」の診断情報、テーマ分割、DevOptions（開発用のキャプチャ許可は Debug ビルドのみ有効なことをテスト）は完了。<strong>R-11 文言の resx 化は未実施</strong>（失敗時の文言は <code>UserMessages</code> の 1 か所に集約済み。画面固有の文言は XAML・ViewModel に残る）</td>
+</tr>
+</tbody>
+</table></div>
+<p>構成の変化: App（C# 約 1,600 行、テストなし）→ App 1,027 行（表示・OS 連携のみ）＋ Application 2,568 行 ＋ Presentation 1,384 行（いずれも Linux でテスト）＋ Cli 78 行。</p>
+<hr />
+<h2>7. Windows 実機確認</h2>
+<ul>
+<li>実施: 2026-10-25 23:10〜23:40、Windows 11（10.0.26300）、AMD fTPM、.NET SDK 10.0.402、一般ユーザー権限</li>
+<li>方法: テスト用 Vault・設定・ログを <code>PWM_DATA=%TEMP%\pwm-check</code> で本番と分け、画面は Claude のコンピューター操作（クリック・入力・スクリーンショット）、状態は PowerShell（UI Automation・クリップボード・ログ）で確認。確認後にテストデータはすべて削除し、本番の保存先（<code>%LOCALAPPDATA%\NewPWManageTool</code>）が作られていないことを確認</li>
+<li>データ: 架空のもののみ（Chrome 形式の CSV も架空の 4 行）</li>
+</ul>
+<h3>7.1 結果</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>確認項目</th>
+<th>結果</th>
+<th>確認内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W-01</td>
+<td>実機 TPM のテスト（<code>--filter Category=Hardware</code>）</td>
+<td>✅</td>
+<td>4 件合格（<code>IsSealedOnThisDevice</code> を含む）。全テストは手元で <strong>B-20 を修正後</strong> 142 件（Core 50・Application 86・Platform.Windows 6）を 5 回連続で合格</td>
+</tr>
+<tr>
+<td>W-02</td>
+<td>初期設定（PIN・鍵ファイル・QR 印刷・復旧コード）</td>
+<td>✅</td>
+<td>PIN 確認の不一致を検出 → 鍵ファイル作成（PC 内ドライブの注意を表示）→ QR 印刷（Microsoft Print to PDF、264 KB）で「保存した」に自動チェック → 復旧コード 2 組の確認 → 一覧へ</td>
+</tr>
+<tr>
+<td>W-03</td>
+<td>PasswordBox の入力が ViewModel に届く</td>
+<td>✅</td>
+<td>PIN（不一致の検出と解錠）、鍵ファイルのパスワード（作成・解錠、誤りは拒否）、項目のパスワード（伏せ字の欄に入力 → 保存 → 開き直して一致）、表示⇔伏せ字の切り替えで内容が保たれる（表示中に追記 → 伏せ字 14 文字 → 再表示で一致）</td>
+</tr>
+<tr>
+<td>W-04</td>
+<td>未保存で別の項目を選ぶ →「戻る」</td>
+<td>✅（修正後）</td>
+<td><strong>当初 NG</strong>（B-21）。修正後: 戻る → 選択は編集中の項目のまま（UI Automation で確認）・編集内容も保持。↓キー → 破棄する → 次の項目へ移り、変更は保存されない</td>
+</tr>
+<tr>
+<td>W-05</td>
+<td>「鍵と設定」とダイアログを開いたまま放置</td>
+<td>✅（無操作のみ）</td>
+<td>自動ロックを 1 分にして、「鍵と設定」＋「鍵ファイルを追加」ダイアログを開いたまま 80 秒 → 両方閉じて解錠画面へ。<strong>Win+L は未実施</strong>（このPCの画面がロックされ操作できなくなるため）</td>
+</tr>
+<tr>
+<td>W-06</td>
+<td>鍵ファイル作成中のロック</td>
+<td>△ 一部</td>
+<td>作成が 1 秒未満で終わり、途中でロックを挟めなかった（Win+L も上記の理由で未実施）。処理中の保留は自動テスト（S13）で確認済み。<strong>作成した 2 本目の鍵ファイルで解錠できることは確認</strong></td>
+</tr>
+<tr>
+<td>W-07</td>
+<td>2 つ目の起動</td>
+<td>✅</td>
+<td>2 つ目のプロセスはすぐ終了（終了コード 0）、<code>SecondInstanceBlocked</code> を記録、プロセスは 1 つのまま</td>
+</tr>
+<tr>
+<td>W-08</td>
+<td>Release ＋ <code>PWM_ALLOW_CAPTURE=1</code> でスクリーンショット</td>
+<td>✅</td>
+<td>画面に表示（最小化なし）されているがスクリーンショットに映らない。<code>GetWindowDisplayAffinity</code> = 0x11（WDA_EXCLUDEFROMCAPTURE）</td>
+</tr>
+<tr>
+<td>W-09</td>
+<td>解錠画面のタブ・Enter・失敗時の消去</td>
+<td>✅</td>
+<td>タブ 3 種の切り替え、誤 PIN を Enter → 「PIN が違います…」表示・入力欄消去・フォーカスはそのまま → 正しい PIN を Enter で解錠。復旧コード（小文字・空白区切り）でも解錠</td>
+</tr>
+<tr>
+<td>W-10</td>
+<td>処理中の覆い／「鍵と設定」が操作できない</td>
+<td>△ 一部</td>
+<td>TPM 登録・鍵ファイル作成とも 0.3〜1 秒で終わり、覆いを撮影できなかった。処理自体は正常に完了</td>
+</tr>
+<tr>
+<td>W-11</td>
+<td>ブラウザ CSV の取り込み</td>
+<td>✅（架空 CSV）</td>
+<td>Chrome 形式 4 行 → 「3 件を取り込みます。パスワードが空の 1 行はスキップ」→ 取り込み、名前が空の行はホスト名をタイトルに、CSV は削除。実際のブラウザのエクスポートファイルでは未確認</td>
+</tr>
+<tr>
+<td>W-12</td>
+<td>クリップボード</td>
+<td>✅</td>
+<td>コピー直後: 内容一致、<code>ExcludeClipboardContentFromMonitorProcessing</code>・<code>CanIncludeInClipboardHistory=0</code>・<code>CanUploadToCloudClipboard=0</code> が付いている。20 秒後に消去。Win+V の画面そのものは未確認</td>
+</tr>
+<tr>
+<td>W-13</td>
+<td>ログフォルダを開く・詳細ログ</td>
+<td>✅</td>
+<td>エクスプローラーでテスト用のログフォルダが開く。詳細ログを入れて保存すると Debug 行（<code>BackupRotated</code>）が出る。ログにパスワード・PIN・メモの文字列は含まれない</td>
+</tr>
+<tr>
+<td>W-14</td>
+<td>予期しないエラー時のダイアログ</td>
+<td>✅</td>
+<td>Debug ビルド限定のテストエラー（<code>PWM_ALLOW_TEST_ERROR=1</code> ＋ Ctrl+Shift+F12、今回追加）で確認。ロック → 「ログフォルダを開く／続ける／終了」。ログに <code>UnhandledException</code>（Critical）→ <code>Locked</code>（Reason=Error）</td>
+</tr>
+<tr>
+<td>W-15</td>
+<td><code>pwm diag tpm</code></td>
+<td>✅</td>
+<td>「TPM: 利用できます（SRK を読み込めました）」。<code>diag vault</code>（4 スロット、この PC の TPM の表示）と <code>logs</code>（警告以上 3 件の要約）も確認</td>
+</tr>
+</tbody>
+</table></div>
+<p>追加で確認したこと: TPM の再登録（「この PC の TPM を登録」）で既存の TPM スロットが <strong>置き換え</strong>られ（スロット数は増えない）、新しい PIN で解錠できる（B-06 の修正を実機で確認）。</p>
+<h3>7.2 残り（利用者の手で確認が必要）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>項目</th>
+<th>理由</th>
+<th>手順</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Win+L・スリープでの自動ロック（W-05・W-06）</td>
+<td>遠隔操作では画面ロック後に操作できない</td>
+<td>解錠中に Win+L → サインインし直して解錠画面になっていること。「鍵ファイルを追加」の作成直後に Win+L → 作成が完了し、その鍵ファイルで開けること</td>
+</tr>
+<tr>
+<td>処理中の覆い（W-10）</td>
+<td>処理が速すぎて撮影できない</td>
+<td>気づいた範囲で、覆いが出て消えること・その間「鍵と設定」が押せないこと</td>
+</tr>
+<tr>
+<td>Win+V の履歴（W-12）</td>
+<td>画面の確認</td>
+<td>パスワードをコピー → Win+V の一覧に出ないこと</td>
+</tr>
+<tr>
+<td>実際のブラウザのエクスポート（W-11）</td>
+<td>実データを扱わないため</td>
+<td>Chrome / Edge でエクスポートした CSV を取り込み、件数が合うこと</td>
+</tr>
+</tbody>
+</table></div>
+<h3>7.3 実機確認での気づき（未修正）</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>#</th>
+<th>内容</th>
+<th>提案</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N-1</td>
+<td>取り込み・鍵ファイル選択のファイルダイアログが <code>C:\Windows\System32</code> で開くことがある（起動時のカレントフォルダ）</td>
+<td>取り込みはダウンロードフォルダ、鍵ファイルは前回の場所から開く</td>
+</tr>
+<tr>
+<td>N-2</td>
+<td>「鍵と設定」は解錠方法が 4 件になると「閉じる」がスクロールしないと見えない</td>
+<td>ウィンドウの高さを内容に合わせる、または「閉じる」を下端に固定</td>
+</tr>
+<tr>
+<td>N-3</td>
+<td>Debug レベルのイベントが <code>BackupRotated</code> の 1 種類だけで、「詳細ログ」を入れても情報がほとんど増えない</td>
+<td>解錠の各段階（ヘッダ読み込み・KDF 所要時間・TPM 応答）などを Debug で追加</td>
+</tr>
+<tr>
+<td>N-4</td>
+<td><code>pwm diag tpm</code> は「利用できます」のみで、docs/10 §6 の製造元・DA カウンタ・上限が出ない</td>
+<td>PoC（<code>poc/TpmSealPoc</code>）と同じ情報を出す</td>
+</tr>
+</tbody>
+</table></div>
+<h2>8. 改善提案（今回は実施していない）</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>内容</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P-01</td>
+<td>R-09 <code>ISlotProvider</code> とレジストリ（解錠画面のタブ・「鍵と設定」のボタンをプロバイダから作る）</td>
+<td>FIDO2・パスキー追加時に必要。現状は 3 種類で固定でも困らない</td>
+</tr>
+<tr>
+<td>P-02</td>
+<td>R-11 画面の文言を <code>Strings.resx</code> に集約</td>
+<td>文言の見直しがしやすくなる。機械的な作業で、画面の確認（W-02〜）と同時に行うのが安全</td>
+</tr>
+<tr>
+<td>P-03</td>
+<td>バックアップの残し方を「直近 5 回」から「直近 5 回＋日ごとに 1 つ（7 日分）」へ</td>
+<td>続けて登録・取り込みをすると、作業前の状態が早く押し出される（§4）</td>
+</tr>
+<tr>
+<td>P-04</td>
+<td>2 台で使う場合、最終使用日の記録が他方の保存で上書きされる</td>
+<td>内容の変わらない保存では counter を進めないため（B-07 の対策の副作用）。最終使用日は目安なので許容。必要なら、保存時に最終使用日だけ合流させる</td>
+</tr>
+<tr>
+<td>P-05</td>
+<td>連続失敗の待ち時間を再起動後も保つ</td>
+<td>現在はアプリを再起動すると数え直す。主な防御は Argon2id と TPM の回数制限のため優先度は低い</td>
+</tr>
+<tr>
+<td>P-06</td>
+<td><code>SaveConflict</code>（別の PC で更新）時に「ロックして開き直す」ボタンを出す</td>
+<td>現在は文言で案内するのみ</td>
+</tr>
+</tbody>
+</table></div>
+</main>
+</body>
+</html>

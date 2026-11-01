@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 画面の状態と操作（ViewModel）。WPF に依存しないため Linux の CI でテストできる（ADR-0006、R4） -->
+  <PropertyGroup>
+    <RootNamespace>PwManager.Presentation</RootNamespace>
+    <AssemblyName>PwManager.Presentation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PwManager.Application\PwManager.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PwManager.Application.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 診断用 CLI `pwm`（R-18、docs/10 §6）。秘密を入力せずに使う。TPM の診断は Windows 版のみ -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>PwManager.Cli</RootNamespace>
+    <AssemblyName>pwm</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PwManager.Application\PwManager.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <ProjectReference Include="..\PwManager.Platform.Windows\PwManager.Platform.Windows.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PwManager.Application.Tests" />
+  </ItemGroup>
+
+</Project>

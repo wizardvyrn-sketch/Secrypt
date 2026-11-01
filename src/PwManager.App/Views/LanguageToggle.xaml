@@ -1,0 +1,15 @@
+<UserControl x:Class="PwManager.App.Views.LanguageToggle"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:PwManager.Presentation.ViewModels;assembly=PwManager.Presentation"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance Type=vm:LanguageViewModel}">
+    <!-- 表示言語の切り替え（docs/08 §8.1）。DataContext は LanguageViewModel。言語名はどちらの言語でもそれぞれの表記のまま -->
+    <StackPanel Orientation="Horizontal" AutomationProperties.Name="Language">
+        <TextBlock Text="&#xE774;" FontFamily="{StaticResource IconFont}" FontSize="13" Foreground="{StaticResource TextMuted}"
+                   VerticalAlignment="Center" Margin="0,0,4,0"/>
+        <RadioButton Content="日本語" Style="{StaticResource TabRadio}" GroupName="UiLanguage" IsChecked="{Binding IsJapanese}" FontSize="12"/>
+        <RadioButton Content="English" Style="{StaticResource TabRadio}" GroupName="UiLanguage" IsChecked="{Binding IsEnglish}" FontSize="12"/>
+    </StackPanel>
+</UserControl>

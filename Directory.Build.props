@@ -1,0 +1,18 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- 表示用の版（1.00A 形式: 機能追加で数字、不具合修正で英字を進める）。画面とパッケージ名はこちらを使う。
+         Version は .NET の数値形式のため、DisplayVersion の数字部分に合わせる -->
+    <DisplayVersion>1.01A</DisplayVersion>
+    <Version>1.0.1</Version>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="DisplayVersion" Value="$(DisplayVersion)" />
+  </ItemGroup>
+</Project>

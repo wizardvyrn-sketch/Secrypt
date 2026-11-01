@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>PwManager.Core</RootNamespace>
+    <AssemblyName>PwManager.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- libsodium ラッパー: Argon2id / XChaCha20-Poly1305 -->
+    <PackageReference Include="NSec.Cryptography" Version="24.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PwManager.Core.Tests" />
+  </ItemGroup>
+
+</Project>

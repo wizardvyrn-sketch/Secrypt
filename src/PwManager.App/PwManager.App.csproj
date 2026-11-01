@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>PwManager.App</RootNamespace>
+    <!-- 表示名・exe 名は Secrypt。データの場所（%LOCALAPPDATA%\NewPWManageTool）は旧名のまま（AppDataPaths） -->
+    <AssemblyName>Secrypt</AssemblyName>
+    <Product>Secrypt</Product>
+    <!-- exe・ショートカット・タスクバー・ウィンドウのアイコン。Assets/Secrypt.png（元画像）から 16〜256px を作った複数サイズ ICO -->
+    <ApplicationIcon>Assets\Secrypt.ico</ApplicationIcon>
+    <AnalysisLevel>latest-minimum</AnalysisLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- キーファイル予備の QR コード生成 -->
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 起動時ロゴ画面（SPIRE デザイン）の書体。OFL のためライセンス文を配布物に同梱する -->
+    <Resource Include="Fonts\*.ttf" />
+    <None Include="Fonts\*-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PwManager.Core\PwManager.Core.csproj" />
+    <ProjectReference Include="..\PwManager.Application\PwManager.Application.csproj" />
+    <ProjectReference Include="..\PwManager.Presentation\PwManager.Presentation.csproj" />
+    <ProjectReference Include="..\PwManager.Platform.Windows\PwManager.Platform.Windows.csproj" />
+  </ItemGroup>
+
+</Project>
