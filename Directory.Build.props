@@ -12,6 +12,17 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
+  <!--
+    配布する Release ビルドに、ビルドした PC のパス（Windows のユーザー名を含む）を埋め込まない。
+    PDB を作らない（PE にデバッグ情報の場所が入らない）ことと、ソースのパスを固定の文字列に置き換えることの両方を行う。
+    scripts/publish.ps1 の -p:DebugType=none だけでは、先にテストでビルドされたライブラリには効かない（順序に依存する）ため、ここで指定する。
+    Debug ビルドは今までどおり（デバッグ・ブレークポイントのため）。
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <PathMap>$(MSBuildThisFileDirectory)=/_/</PathMap>
+  </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="DisplayVersion" Value="$(DisplayVersion)" />
   </ItemGroup>

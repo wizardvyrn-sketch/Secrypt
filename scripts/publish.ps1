@@ -62,7 +62,8 @@ if (-not (Test-Path (Join-Path $RepoRoot 'PwManager.slnx'))) {
 }
 [xml]$props = Get-Content -LiteralPath (Join-Path $RepoRoot 'Directory.Build.props') -Encoding UTF8
 # パッケージ名・README には表示用の版（1.00A 形式）を使う
-$Version = @($props.Project.PropertyGroup | ForEach-Object { $_.DisplayVersion } | Where-Object { $_ })[0]
+# PropertyGroup は複数ある（Release 用の設定など）ため、DisplayVersion を持つものだけから読む
+$Version = @($props.Project.PropertyGroup | Where-Object { $_.PSObject.Properties['DisplayVersion'] } | ForEach-Object { $_.DisplayVersion } | Where-Object { $_ })[0]
 if (-not $Version) { $Version = '0.00A' }
 $PkgName = "$AppName-$Version-win-x64"
 if (-not $OutDir) { $OutDir = Join-Path $RepoRoot 'publish' }
