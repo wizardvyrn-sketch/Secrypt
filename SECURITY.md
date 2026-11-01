@@ -34,7 +34,7 @@ Please read these before relying on Secrypt for anything important.
 - **A key file saved as PDF is a plain-text copy.** Print the backup QR code on paper; the app warns if you choose a file-output printer, but cannot always tell.
 - **Unsigned executable.** The distributed `Secrypt.exe` is not code-signed, so Windows SmartScreen may warn on first launch. Compare the files with `SHA256SUMS.txt` in the package.
 - **One PC, one vault file.** There is no multi-PC sync or merge. If the file is changed elsewhere while it is open, the save is refused instead of overwriting.
-- **Post-quantum security is not a goal of the current design.** It has only been evaluated, not implemented ([docs/07-mceliece-evaluation.md](docs/07-mceliece-evaluation.md)).
+- **No post-quantum key encapsulation is implemented.** McEliece / ML-KEM have only been evaluated, not built in ([docs/07-mceliece-evaluation.md](docs/07-mceliece-evaluation.md)). The vault uses only symmetric cryptography (XChaCha20-Poly1305, Argon2id, HKDF-SHA256), and the TPM method seals its secret with symmetric protection ([ADR-0004](docs/adr/0004-tpm-seal-instead-of-rsa-wrap.md)), so it is designed not to rely on public-key algorithms that quantum computers are expected to break. This design has not been independently verified.
 
 ---
 
@@ -72,4 +72,4 @@ Secrypt は、**保管ファイルだけ、またはパスワードだけが漏�
 - **PDF で保存した鍵ファイルは、平文のコピーです。** 予備の QR コードは紙に印刷してください。ファイルに出力するプリンターを選ぶと警告しますが、見分けられないこともあります。
 - **署名のない実行ファイルです。** 配布している `Secrypt.exe` にはコード署名がなく、初回起動時に Windows SmartScreen の警告が出ることがあります。パッケージ内の `SHA256SUMS.txt` と照合してください。
 - **1 台の PC に 1 つの保管ファイルです。** 複数 PC での同期や統合はありません。開いている間に別の場所でファイルが更新された場合は、上書きせずに保存を中止します。
-- **量子コンピューター時代の安全性は、今の設計の目標ではありません。** 評価はしましたが実装はしていません（[docs/07-mceliece-evaluation.md](docs/07-mceliece-evaluation.md)）。
+- **耐量子の鍵カプセル化は実装していません。** McEliece や ML-KEM は評価しただけで、組み込んでいません（[docs/07-mceliece-evaluation.md](docs/07-mceliece-evaluation.md)）。保管ファイルは共通鍵暗号（XChaCha20-Poly1305、Argon2id、HKDF-SHA256）だけで保護し、TPM の方式も秘密を対称保護で封印するため（[ADR-0004](docs/adr/0004-tpm-seal-instead-of-rsa-wrap.md)）、量子コンピューターで破られると見込まれる公開鍵暗号に頼らない設計にしています。ただし、この設計は第三者による検証を受けていません。

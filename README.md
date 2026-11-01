@@ -112,4 +112,15 @@ scripts\publish.cmd                                          # 配布フォル�
 
 データの保存先: `%LOCALAPPDATA%\NewPWManageTool\`（`vault.pwmv`・`settings.json`・`logs\`）。環境変数 `PWM_DATA` で切り替えられます。ログにパスワードや項目の内容は記録しません。
 
+### 文字コード（日本語の扱い）
+
+詳しい方針と理由は [docs/05-tech-stack.md](docs/05-tech-stack.md) の「6. 文字コード」にあります。作業するときに守ることだけを示します。
+
+- 日本語を含むテキストファイルは、すべて **UTF-8** です。
+- **PowerShell スクリプト（`scripts/*.ps1`、`scripts/dist/setup.ps1`）と、配布物の `README.txt` は「BOM 付き UTF-8」** です。Windows PowerShell 5.1 は BOM のない UTF-8 を ANSI（日本語環境では Shift_JIS）として読み、日本語が文字化けするためです。エディタや自動整形で BOM を外さないでください。それ以外（`.cs`・`.xaml`・`.md`・`.html` など）は BOM なしです。
+- **`.cmd` は ASCII だけ**にしてください（日本語やコメントも英語）。cmd.exe は OEM コードページで読むため、日本語を入れると壊れます。
+- 改行は `.gitattributes` が決めます。Windows の Git で「LF will be replaced by CRLF」と出ても問題ありません。
+- アプリは PIN・パスワード・項目を UTF-8 のバイト列で扱い、**Unicode の正規化はしません**（全角と半角、結合文字は別の文字のままです）。CSV の取り込みは UTF-8（BOM 付きも可）で、Shift_JIS には対応しません。
+- 日本語を含むファイルは、シェルのパイプやヒアドキュメントで作らず、エディタで保存してください（コンソールのコードページで文字化けします）。検索には UTF-8 に対応したツール（`rg` など）を使ってください。
+
 設計文書（日本語）: [docs/](docs/) — 01 構想・要件、02 脅威モデル、03 鍵管理設計、04 アーキテクチャ、05 技術スタック、06 ロードマップ、07 McEliece 適用検討、08 画面仕様、09 構造検討書、10 デバッグ・ログ仕様、[adr/](docs/adr/)。

@@ -67,3 +67,23 @@
 - Visual Studio 2022 / VS Code + C# Dev Kit
 - GitHub Actions（windows-latest）: ビルド、テスト、CodeQL
 - テスト用ハードウェア: TPM 2.0 搭載 PC、USB メモリ。YubiKey 5 系（FIDO2 + hmac-secret 対応）は購入後（保留機能の有効化時）
+
+## 6. 文字コード
+
+日本語（画面・文書・ソース）と英語を同じファイルに書くため、文字コードを次のとおり決める（2026-11-01）。
+
+| 対象 | 方針 | 理由 |
+|---|---|---|
+| ソース・文書（`.cs` `.xaml` `.csproj` `.md` `.html` `.yml`） | UTF-8、BOM なし | 日本語の文言とコメントをそのまま書く。HTML は `<meta charset="utf-8">` を付ける |
+| PowerShell（`.ps1`）、配布物の `README.txt` | **UTF-8 の BOM 付き** | Windows PowerShell 5.1 は、BOM のない UTF-8 を ANSI（日本語環境では CP932）として読み、日本語が化ける。`README.txt` はメモ帳に UTF-8 と判定させる |
+| `.cmd`（`setup.cmd` など、`setup.ps1` が書き出す `uninstall.cmd` も） | **ASCII のみ** | cmd.exe は OEM コードページ（CP932）で読むため、日本語を入れると壊れる。説明は英語で書く |
+| 改行 | `.gitattributes`: `.ps1`・`.cmd`・`scripts/dist/*.txt` は CRLF、ほかは `text=auto` | Windows の Git の自動変換による差分を避ける |
+| スクリプトの画面出力 | 実行時に `[Console]::OutputEncoding` を UTF-8 にする | 日本語の案内を表示するため |
+| 画面の文言 | 日本語・英語とも、ソースに直接書く（§8.1 of docs/08、リソースファイルなし） | キーの対応ずれを避ける |
+| PIN・パスワード・項目 | UTF-8 のバイト列。**Unicode の正規化はしない** | 入力した文字列がそのまま鍵の材料になる。正規化を後から加えると、既存の保管ファイルが開けなくなる |
+| 保管ファイルの本体 | 項目の文字列は UTF-8 を厳密に検証する（不正なバイト列は読み込みを拒否） | 壊れた・改ざんされたファイルを見逃さない |
+| 設定（`settings.json`）・ログ（JSONL） | UTF-8、BOM なし | |
+| CSV の取り込み | UTF-8（BOM 付きも可）。Shift_JIS は非対応 | Chrome・Edge が書き出す CSV は UTF-8 |
+| 鍵ファイルのテキスト（`PWMK1:…`）、復旧コード | ASCII（Base32） | 紙に写しても、文字コードの問題が起きない |
+
+注意（利用者向けに手順書へも記載）: 正規化をしないため、同じ見た目でも、全角と半角（`Ａ` と `A`）、「が」を 1 文字で入力した場合と「か」＋濁点で入力した場合は、**別の PIN・パスワード**になる。IME の設定や貼り付け元で入力のしかたが変わると開けなくなるおそれがあるため、迷うときは半角の英数字と記号だけを勧める。
