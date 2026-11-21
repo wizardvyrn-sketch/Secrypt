@@ -10,11 +10,26 @@ namespace PwManager.Application.Results;
 /// </summary>
 public static class UserMessages
 {
+    /// <summary>PIN を間違えたあとの案内（あと何回で止めるか）。止まっているなら再開時刻つき。</summary>
+    public static string WrongPinWithLimit(int attemptsLeft, DateTimeOffset? resumeAt)
+        => For(ErrorCode.WrongPin) + "\n" + (resumeAt is { } until ? PinSuspended(until) : PinAttemptsLeft(attemptsLeft));
+
+    /// <summary>PIN の試行を止めている旨と、再開時刻。</summary>
+    public static string PinSuspended(DateTimeOffset resumeAt)
+    {
+        var time = resumeAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        return L.T($"PIN の失敗が続いたため、{time} まで PIN での解錠を停止します。このまま試し続けると Windows が TPM を数時間ブロックし、正しい PIN でも開けなくなるためです。鍵ファイル／復旧コードで解錠してください。",
+            $"PIN unlock is paused until {time} after repeated failures. If you keep trying, Windows blocks the TPM for hours and even the correct PIN will not work. Unlock with the key file or the recovery code.");
+    }
+
+    private static string PinAttemptsLeft(int left)
+        => L.T($"あと {left} 回間違えると、PIN での解錠を一時停止します（Windows に TPM を数時間ブロックされるのを防ぐため）。",
+            $"If you get it wrong {left} more time(s), PIN unlock will be paused (to keep Windows from blocking the TPM for hours).");
+
     public static string For(ErrorCode code, string? detail = null) => code switch
     {
         ErrorCode.None => string.Empty,
-        ErrorCode.WrongPin => L.T("PIN が違います。（TPM の失敗回数が 1 回増えました。31 回でロックされ、10 分ごとに 1 回減ります）",
-            "Wrong PIN. (The TPM failure count went up by one. It locks at 31, and one failure is forgiven every 10 minutes.)"),
+        ErrorCode.WrongPin => L.T("PIN が違います。", "Wrong PIN."),
         ErrorCode.WrongKey => L.T("解錠できませんでした。パスワードと鍵ファイルを確認してください。",
             "Could not unlock. Check the password and the key file."),
         ErrorCode.WrongRecoveryCode => L.T("復旧コードが違います。紙に書き写したコードを確認してください。",
@@ -29,8 +44,10 @@ public static class UserMessages
             "This key file is not for this vault file (it was created for a different vault file)."),
         ErrorCode.KeyfileRevoked => L.T("この鍵ファイルは削除済み（無効）です。新しい鍵ファイルか、別の方法で解錠してください。",
             "This key file has been removed (disabled). Unlock with a new key file or another method."),
-        ErrorCode.TpmLockedOut => L.T("PIN の失敗が続いたため、TPM が一時的にロックされています。時間をおくか、鍵ファイル／復旧コードで解錠してください。",
-            "The TPM is temporarily locked after repeated PIN failures. Wait a while, or unlock with the key file or the recovery code."),
+        ErrorCode.TpmLockedOut => L.T("PIN の失敗が続いたため、Windows がこの PC の TPM を一時的にブロックしています。数時間続くことがあり、その間は正しい PIN でも解錠できません。鍵ファイル／復旧コードで解錠してください。",
+            "Windows is temporarily blocking this PC's TPM after repeated PIN failures. This can last for hours, and even the correct PIN will not work meanwhile. Unlock with the key file or the recovery code."),
+        ErrorCode.PinSuspended => L.T("PIN の失敗が続いたため、PIN での解錠を一時停止しています。鍵ファイル／復旧コードで解錠してください。",
+            "PIN unlock is paused after repeated PIN failures. Unlock with the key file or the recovery code."),
         ErrorCode.TpmUnavailable => L.T("TPM を利用できません。", "The TPM is not available. ")
             + (string.IsNullOrWhiteSpace(detail) ? string.Empty : L.T($"（{detail}）", $"({detail}) "))
             + L.T("鍵ファイル／復旧コードで解錠してください。", "Unlock with the key file or the recovery code."),

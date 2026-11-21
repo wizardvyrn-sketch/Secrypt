@@ -193,6 +193,21 @@ public sealed class SlotScenarioTests : IDisposable
     }
 
     [Fact]
+    public async Task S11b_WindowsがTPMをブロック中でも_鍵と設定の一覧は出る_この_PCかどうかは不明として表示する()
+    {
+        await _pc.CompleteSetupAsync(_pin, _password);
+        _pc.Tpm.OsBlocked = true; // 以前は TpmLockedOutException がそのまま出て、アプリが落ちた（2026-11-21）
+
+        var slots = await _pc.Slots.GetSlotsAsync();
+        Assert.Equal(3, slots.Count);
+        Assert.Null(slots.Single(s => s.Type == SlotType.Tpm).IsThisDevice);
+        Assert.Contains(_world.AllLogLines(), l => l.Contains("\"TpmBlockedByOs\"", StringComparison.Ordinal));
+
+        _pc.Tpm.OsBlocked = false;
+        Assert.True((await _pc.Slots.GetSlotsAsync()).Single(s => s.Type == SlotType.Tpm).IsThisDevice);
+    }
+
+    [Fact]
     public async Task S12_復旧コードを作り直す_確認が違えば古いコードのまま_確定すると古いコードは無効()
     {
         var secrets = await _pc.CompleteSetupAsync(_pin, _password);

@@ -18,9 +18,16 @@ public sealed class AppSettings
     /// <summary>表示言語（"ja" / "en"）。未設定（null）なら Windows の表示言語に合わせる。</summary>
     public string? Language { get; set; }
 
+    /// <summary>
+    /// PIN を間違えた時刻（<see cref="Policies.PinAttemptPolicy"/> で窓の外のものを捨てる）。
+    /// Windows が TPM の認証失敗を数える窓（既定 480 分）は、アプリを再起動しても続くため、設定に残す。
+    /// </summary>
+    public List<DateTimeOffset> PinFailures { get; set; } = [];
+
     /// <summary>範囲外の値（手で編集された設定ファイルなど）を既定値の範囲に収める。</summary>
     public AppSettings Normalize()
     {
+        PinFailures = PinFailures is null ? [] : [.. PinFailures.OrderBy(t => t).TakeLast(Policies.PinAttemptPolicy.MaxFailuresInWindow * 2)];
         AutoLockMinutes = AutoLockMinutes is >= MinAutoLockMinutes and <= MaxAutoLockMinutes ? AutoLockMinutes : DefaultAutoLockMinutes;
         ClipboardClearSeconds = ClipboardClearSeconds is >= MinClipboardSeconds and <= MaxClipboardSeconds ? ClipboardClearSeconds : DefaultClipboardSeconds;
         if (string.IsNullOrWhiteSpace(LastKeyfilePath)) LastKeyfilePath = null;
@@ -28,7 +35,12 @@ public sealed class AppSettings
         return this;
     }
 
-    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+    public AppSettings Clone()
+    {
+        var copy = (AppSettings)MemberwiseClone();
+        copy.PinFailures = [.. PinFailures]; // 一覧を共有しない（変更が現在の設定に漏れないように）
+        return copy;
+    }
 }
 
 /// <summary>設定の読み書き。実装は <see cref="Infrastructure.JsonSettingsStore"/>。</summary>

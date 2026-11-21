@@ -38,7 +38,7 @@ public sealed class ViewModelScenarioTests : IDisposable
     public void Dispose() => _world.Dispose();
 
     private SetupViewModel NewSetup() => new(_pc.Setup, _dialogs, new LanguageViewModel(_pc.Settings));
-    private UnlockViewModel NewUnlock() => new(_pc.Unlock, _pc.Session, _dialogs, new LanguageViewModel(_pc.Settings));
+    private UnlockViewModel NewUnlock() => new(_pc.Unlock, _pc.Session, _dialogs, new LanguageViewModel(_pc.Settings), _pc.Logger<UnlockViewModel>());
     private VaultViewModel NewVault()
     {
         var vm = new VaultViewModel(_pc.Entries, _pc.Import, _pc.Session, _pc.Settings, _pc.Clipboard, _dialogs, _shellService, NewKeys, _pc.Logger<VaultViewModel>());
@@ -135,16 +135,80 @@ public sealed class ViewModelScenarioTests : IDisposable
     {
         await SetupThroughUiAsync();
         var unlock = await LockAndShowUnlockAsync();
-        var box = FakeSecretBox.Attach(unlock.Pin);
+        unlock.IsKeyfileSelected = true;
+        var box = FakeSecretBox.Attach(unlock.KeyfilePassword);
         for (int i = 0; i < 3; i++)
         {
-            box.Text = "wrong-" + i;
+            box.Text = "wrong password " + i;
             await unlock.UnlockCommand.ExecuteAsync(null);
         }
         Assert.Contains("次は 15 秒後", unlock.ErrorMessage, StringComparison.Ordinal);
-        box.Text = _pin;
+        box.Text = _password;
         await unlock.UnlockCommand.ExecuteAsync(null);
         Assert.Contains("15 秒待って", unlock.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 画面_PINを間違えるとあと何回で停止するか案内し_停止したらPINタブを無効にして鍵ファイルへ切り替える()
+    {
+        await SetupThroughUiAsync();
+        var unlock = await LockAndShowUnlockAsync();
+        var box = FakeSecretBox.Attach(unlock.Pin);
+
+        box.Text = "wrong-1";
+        await unlock.UnlockCommand.ExecuteAsync(null);
+        Assert.Contains("あと 2 回", unlock.ErrorMessage, StringComparison.Ordinal);
+        box.Text = "wrong-2";
+        await unlock.UnlockCommand.ExecuteAsync(null);
+        Assert.Contains("あと 1 回", unlock.ErrorMessage, StringComparison.Ordinal);
+        Assert.True(unlock.PinAvailable);
+
+        box.Text = "wrong-3";
+        await unlock.UnlockCommand.ExecuteAsync(null);
+        Assert.Contains("PIN での解錠を停止", unlock.ErrorMessage, StringComparison.Ordinal); // メッセージは方法の切り替えで消えない
+        Assert.Contains("次は 15 秒後", unlock.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(unlock.PinAvailable);
+        Assert.True(unlock.IsKeyfileSelected);
+
+        // 解錠画面を作り直しても（ロック→解錠画面）、PIN は無効のまま、理由と再開時刻を出す
+        var again = NewUnlock();
+        await again.InitializeAsync();
+        Assert.False(again.PinAvailable);
+        Assert.Contains("まで PIN での解錠を停止", again.Hint, StringComparison.Ordinal);
+        Assert.True(again.IsKeyfileSelected);
+    }
+
+    [Fact]
+    public async Task 画面_WindowsがTPMをブロック中でも解錠画面は開き_理由を案内して鍵ファイルへ切り替える()
+    {
+        await SetupThroughUiAsync();
+        _pc.Tpm.OsBlocked = true;
+        var unlock = await LockAndShowUnlockAsync(); // 以前は TpmLockedOutException が未処理のまま出て、画面が読み込み中のままだった
+
+        Assert.True(unlock.IsLoaded);
+        Assert.True(unlock.CanUnlock);
+        Assert.False(unlock.PinAvailable);
+        Assert.True(unlock.IsKeyfileSelected);
+        Assert.Contains("ブロック", unlock.Hint, StringComparison.Ordinal);
+
+        FakeSecretBox.Attach(unlock.KeyfilePassword, _password);
+        await unlock.UnlockCommand.ExecuteAsync(null);
+        Assert.IsType<VaultViewModel>(_shell.CurrentPage);
+    }
+
+    [Fact]
+    public async Task 画面_解錠方法の調査が想定外に失敗しても_解錠画面は使え_ログに残る()
+    {
+        await SetupThroughUiAsync();
+        _pc.Tpm.ThrowUnexpected = true;
+        var unlock = await LockAndShowUnlockAsync(); // InitializeAsync は例外を出さない（結果を待たずに呼ばれるため）
+
+        Assert.True(unlock.IsLoaded);
+        Assert.True(unlock.CanUnlock);
+        Assert.False(unlock.PinAvailable);
+        Assert.True(unlock.IsRecoverySelected);
+        Assert.NotNull(unlock.ErrorMessage); // 黙って切り替えない
+        Assert.Contains(_world.AllLogLines(), l => l.Contains("\"UnlockError\"", StringComparison.Ordinal) && l.Contains("Options", StringComparison.Ordinal));
     }
 
     [Fact]

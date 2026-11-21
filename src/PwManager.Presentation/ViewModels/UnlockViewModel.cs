@@ -1,5 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using PwManager.Application.Logging;
 using PwManager.Application.Results;
 using PwManager.Application.Services;
 using PwManager.Application.Session;
@@ -17,12 +20,14 @@ public sealed partial class UnlockViewModel : ObservableObject
 
     private readonly UnlockService _unlock;
     private readonly IDialogService _dialogs;
+    private readonly ILogger _log;
     private string? _keyfileText;
 
-    public UnlockViewModel(UnlockService unlock, VaultSession session, IDialogService dialogs, LanguageViewModel language)
+    public UnlockViewModel(UnlockService unlock, VaultSession session, IDialogService dialogs, LanguageViewModel language, ILogger<UnlockViewModel>? logger = null)
     {
         _unlock = unlock;
         _dialogs = dialogs;
+        _log = logger ?? NullLogger<UnlockViewModel>.Instance;
         Language = language;
         VaultPath = session.Location;
     }
@@ -70,16 +75,34 @@ public sealed partial class UnlockViewModel : ObservableObject
     }
 
     /// <summary>使える方法を調べて、既定のタブを選ぶ。</summary>
+    /// <summary>
+    /// 結果を待たずに呼ばれる（ShellViewModel）ため、ここから例外を出さない。
+    /// 想定外の失敗でも、解錠画面が使えない状態（読み込み中のまま）にならないよう、復旧コードの入力に切り替えて案内する。
+    /// </summary>
     public async Task InitializeAsync()
     {
-        var o = await _unlock.GetOptionsAsync();
-        PinAvailable = o.PinAvailable;
-        KeyfileAvailable = o.KeyfileAvailable;
-        KeyfilePath = o.LastKeyfilePath ?? string.Empty;
-        CanUnlock = o.VaultReadable;
-        SelectedMethod = o.DefaultMethod;
-        if (!o.VaultReadable) ErrorMessage = UserMessages.For(o.HeaderError);
-        else if (o.TpmSlotsForOtherDevicesOnly) Hint = UserMessages.For(ErrorCode.TpmNotRegisteredOnThisDevice);
+        try
+        {
+            var o = await _unlock.GetOptionsAsync();
+            PinAvailable = o.PinAvailable;
+            KeyfileAvailable = o.KeyfileAvailable;
+            KeyfilePath = o.LastKeyfilePath ?? string.Empty;
+            CanUnlock = o.VaultReadable;
+            SelectedMethod = o.DefaultMethod;
+            if (!o.VaultReadable) ErrorMessage = UserMessages.For(o.HeaderError);
+            else if (o.PinResumeAt is { } resumeAt) Hint = UserMessages.PinSuspended(resumeAt);
+            else if (o.PinBlockedByOs) Hint = UserMessages.For(ErrorCode.TpmLockedOut);
+            else if (o.TpmSlotsForOtherDevicesOnly) Hint = UserMessages.For(ErrorCode.TpmNotRegisteredOnThisDevice);
+        }
+        catch (Exception ex)
+        {
+            Log.UnlockError(_log, "Options", ex.GetType().Name, ex);
+            PinAvailable = false;
+            KeyfileAvailable = true;
+            CanUnlock = true;
+            SelectedMethod = UnlockMethod.Recovery;
+            ErrorMessage = UserMessages.For(ErrorCode.Unexpected);
+        }
         IsLoaded = true;
         FocusCurrent();
     }
@@ -136,17 +159,32 @@ public sealed partial class UnlockViewModel : ObservableObject
             return; // 画面は VaultSession の解錠通知で切り替わる
         }
 
-        ErrorMessage = r.Error == ErrorCode.RetryLater
-            ? L.T($"失敗が続いたため、{Math.Ceiling(r.RetryAfter?.TotalSeconds ?? 1)} 秒待ってから再試行してください。",
-                  $"Too many failed attempts. Wait {Math.Ceiling(r.RetryAfter?.TotalSeconds ?? 1)} seconds and try again.")
-            : UserMessages.For(r.Error) + (r.RetryAfter is { } wait
-                ? L.T($"\n失敗が続いたため、次は {Math.Ceiling(wait.TotalSeconds)} 秒後から試せます。",
-                      $"\nToo many failed attempts. You can try again in {Math.Ceiling(wait.TotalSeconds)} seconds.")
-                : string.Empty);
+        var message = r.Error switch
+        {
+            ErrorCode.RetryLater => L.T($"失敗が続いたため、{Math.Ceiling(r.RetryAfter?.TotalSeconds ?? 1)} 秒待ってから再試行してください。",
+                $"Too many failed attempts. Wait {Math.Ceiling(r.RetryAfter?.TotalSeconds ?? 1)} seconds and try again."),
+            ErrorCode.PinSuspended when r.PinResumeAt is { } until => UserMessages.PinSuspended(until),
+            ErrorCode.WrongPin when r.PinAttemptsLeft is { } left => UserMessages.WrongPinWithLimit(left, r.PinResumeAt) + WaitNote(r),
+            _ => UserMessages.For(r.Error) + WaitNote(r),
+        };
+
+        // PIN が使えなくなったら、PIN のタブを無効にして、使える方法に切り替える（同じ画面で試し続けさせない）
+        bool pinGone = r.Error is ErrorCode.PinSuspended or ErrorCode.TpmLockedOut || r.PinResumeAt is not null;
+        if (pinGone)
+        {
+            PinAvailable = false;
+            if (SelectedMethod == UnlockMethod.Pin) SelectedMethod = KeyfileAvailable ? UnlockMethod.Keyfile : UnlockMethod.Recovery;
+        }
+        ErrorMessage = message; // 方法の切り替えでメッセージが消えるため、最後に設定する
         Pin.Clear();
         KeyfilePassword.Clear();
         FocusCurrent();
     }
+
+    private static string WaitNote(UnlockResult r) => r.RetryAfter is { } wait
+        ? L.T($"\n失敗が続いたため、次は {Math.Ceiling(wait.TotalSeconds)} 秒後から試せます。",
+              $"\nToo many failed attempts. You can try again in {Math.Ceiling(wait.TotalSeconds)} seconds.")
+        : string.Empty;
 
     private void FocusCurrent()
     {

@@ -14,7 +14,10 @@ using PwManager.Core.Vault;
 namespace PwManager.Application.Services;
 
 /// <summary>解錠の結果（R-14）。</summary>
-public sealed record UnlockResult(ErrorCode Error, UnlockMethod Method, Guid? SlotId = null, TimeSpan? RetryAfter = null, int ConsecutiveFailures = 0)
+/// <param name="PinAttemptsLeft">PIN の試行を止めるまでの残り回数（PIN の解錠だけ。0 なら停止中）。</param>
+/// <param name="PinResumeAt">PIN を止めている場合の再開時刻。</param>
+public sealed record UnlockResult(ErrorCode Error, UnlockMethod Method, Guid? SlotId = null, TimeSpan? RetryAfter = null, int ConsecutiveFailures = 0,
+    int? PinAttemptsLeft = null, DateTimeOffset? PinResumeAt = null)
 {
     public bool Ok => Error == ErrorCode.None;
 }
@@ -65,25 +68,48 @@ public sealed class UnlockService
 
         var tpmSlots = header.Slots.Where(s => s.Type == SlotType.Tpm).ToList();
         int onThisDevice = 0;
-        if (tpmSlots.Count > 0)
+        bool blockedByOs = false;
+        var resumeAt = PinResumeAt();
+        if (tpmSlots.Count > 0 && resumeAt is null)
         {
-            onThisDevice = await Task.Run(() =>
+            (onThisDevice, blockedByOs) = await Task.Run(() =>
             {
-                try { return tpmSlots.Count(s => _tpm.IsSealedOnThisDevice(s.TypeParams)); }
+                try { return (tpmSlots.Count(s => _tpm.IsSealedOnThisDevice(s.TypeParams)), false); }
                 catch (TpmUnavailableException ex)
                 {
                     Log.TpmUnavailable(_log, ex.Message);
-                    return 0;
+                    return (0, false);
+                }
+                catch (TpmLockedOutException)
+                {
+                    // Windows が、このユーザーの TPM コマンドをブロックしている。PIN は使えない（ここで落とさず、画面で案内する）
+                    Log.TpmBlockedByOs(_log, "UnlockOptions");
+                    return (0, true);
                 }
             });
             Log.TpmSlotsOnThisDevice(_log, tpmSlots.Count, onThisDevice);
         }
 
+        // PIN を止めている間は TPM に問い合わせない（問い合わせても、状況は変わらず、ブロックの記録を増やすだけ）
         bool pin = onThisDevice > 0;
         bool keyfile = header.Slots.Any(s => s.Type == SlotType.Keyfile);
         var defaultMethod = pin ? UnlockMethod.Pin : keyfile ? UnlockMethod.Keyfile : UnlockMethod.Recovery;
         return new UnlockOptions(true, pin, keyfile, defaultMethod, lastKeyfile, ErrorCode.None,
-            TpmSlotsForOtherDevicesOnly: tpmSlots.Count > 0 && onThisDevice == 0);
+            TpmSlotsForOtherDevicesOnly: tpmSlots.Count > 0 && onThisDevice == 0 && !blockedByOs && resumeAt is null,
+            PinResumeAt: resumeAt, PinBlockedByOs: blockedByOs);
+    }
+
+    /// <summary>PIN の失敗が続いて止めている場合の再開時刻。止めていなければ null。</summary>
+    private DateTimeOffset? PinResumeAt()
+        => PinAttemptPolicy.ResumeAt(PinAttemptPolicy.Recent(_settings.Current.PinFailures, _time.GetUtcNow()));
+
+    /// <summary>PIN を間違えた時刻を記録し、窓の中の失敗を返す（古い記録は捨てる）。</summary>
+    private List<DateTimeOffset> RecordPinFailure()
+    {
+        var now = _time.GetUtcNow();
+        var recent = PinAttemptPolicy.Recent([.. _settings.Current.PinFailures, now], now);
+        _settings.Update(s => s.PinFailures = [.. recent]);
+        return recent;
     }
 
     /// <summary>解錠する。成功すると VaultSession が解錠状態になる。request 内の秘密のバイト列はゼロ化する。</summary>
@@ -95,6 +121,12 @@ public sealed class UnlockService
         try
         {
             if (_session.IsUnlocked) return new UnlockResult(ErrorCode.InvalidStep, method);
+            if (method == UnlockMethod.Pin && PinResumeAt() is { } resume)
+            {
+                // Windows に TPM をブロックされないよう、PIN は試さない（正しい PIN でも、ブロックされたら数時間使えなくなるため）
+                Log.PinSuspended(_log, PinAttemptPolicy.MaxFailuresInWindow, resume);
+                return new UnlockResult(ErrorCode.PinSuspended, method, PinAttemptsLeft: 0, PinResumeAt: resume);
+            }
             if (_backoff.RemainingDelay is { } wait)
                 return new UnlockResult(ErrorCode.RetryLater, method, RetryAfter: wait, ConsecutiveFailures: _backoff.ConsecutiveFailures);
 
@@ -111,8 +143,23 @@ public sealed class UnlockService
 
             if (r.Error is ErrorCode.WrongPin or ErrorCode.WrongKey or ErrorCode.WrongRecoveryCode)
                 _backoff.RegisterFailure();
+
+            int? pinLeft = null;
+            DateTimeOffset? pinResume = null;
+            if (method == UnlockMethod.Pin && r.Error == ErrorCode.WrongPin)
+            {
+                var recent = RecordPinFailure();
+                pinLeft = PinAttemptPolicy.AttemptsLeft(recent);
+                pinResume = PinAttemptPolicy.ResumeAt(recent);
+                if (pinResume is { } until) Log.PinSuspended(_log, recent.Count, until);
+            }
+            else if (r.Error == ErrorCode.TpmLockedOut)
+            {
+                Log.TpmBlockedByOs(_log, "Unlock");
+            }
             Log.UnlockFailed(_log, method.ToString(), r.Error, sw.ElapsedMilliseconds, _backoff.ConsecutiveFailures);
-            return new UnlockResult(r.Error, method, RetryAfter: _backoff.RemainingDelay, ConsecutiveFailures: _backoff.ConsecutiveFailures);
+            return new UnlockResult(r.Error, method, RetryAfter: _backoff.RemainingDelay, ConsecutiveFailures: _backoff.ConsecutiveFailures,
+                PinAttemptsLeft: pinLeft, PinResumeAt: pinResume);
         }
         finally
         {

@@ -32,7 +32,11 @@ public sealed record UnlockOptions(
     string? LastKeyfilePath,
     Results.ErrorCode HeaderError,
     /// <summary>TPM のスロットはあるが、この PC の TPM のものではない（PC 買い替え・TPM クリア後）。</summary>
-    bool TpmSlotsForOtherDevicesOnly);
+    bool TpmSlotsForOtherDevicesOnly,
+    /// <summary>PIN の失敗が続いて、アプリが PIN を止めている場合の再開時刻（このとき TPM には問い合わせない）。</summary>
+    DateTimeOffset? PinResumeAt = null,
+    /// <summary>TPM への問い合わせが、Windows／TPM のロックアウトで拒否された（PIN は使えない。再開時刻は分からない）。</summary>
+    bool PinBlockedByOs = false);
 
 /// <summary>Vault 内のスロットの表示用情報（秘密を含まない）。</summary>
 public sealed record SlotInfo(Guid Id, SlotType Type, string Label, DateTimeOffset Created, DateTimeOffset? LastVerified, bool? IsThisDevice);

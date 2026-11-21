@@ -124,6 +124,8 @@ public sealed class WindowsTpmSealer : ITpmSealer
 
         // Load は封印オブジェクトの authValue を使わないため、TPM の失敗回数（DA）は増えない。
         // 別の TPM（別の PC・クリア前）の SRK 配下で作った blob は完全性検査で失敗する。
+        // ただし、Windows が標準ユーザーの TPM コマンドをブロック中は、この Load も拒否される
+        // （TpmLockedOutException。呼び出し側は「この PC のものか分からない」として扱うこと）。
         return Execute(tpm =>
         {
             TpmHandle handle;
@@ -166,8 +168,10 @@ public sealed class WindowsTpmSealer : ITpmSealer
                     throw rc switch
                     {
                         TpmRc.AuthFail or TpmRc.BadAuth => new TpmAuthFailedException(L.T("PIN が違います。", "Wrong PIN.")),
-                        TpmRc.Lockout => new TpmLockedOutException(L.T("PIN の失敗が続いたため、TPM が一時的にロックされています。時間をおくか、鍵ファイル／復旧コードで解錠してください。",
-                "The TPM is temporarily locked after repeated PIN failures. Wait a while, or unlock with the key file or the recovery code.")),
+                        // TPM 自体の総当たり対策（DA）の上限のほか、Windows が標準ユーザーの認証失敗の多さで TPM コマンドをブロックしたときも、この結果になる
+                        // （TPM イベント ID 23。DA のカウンタが上限よりずっと小さくても起きる）。ブロック中は封印・読み込みも拒否される
+                        TpmRc.Lockout => new TpmLockedOutException(L.T("PIN の失敗が続いたため、Windows がこの PC の TPM を一時的にブロックしています。数時間続くことがあり、その間は正しい PIN でも解錠できません。鍵ファイル／復旧コードで解錠してください。",
+                "Windows is temporarily blocking this PC's TPM after repeated PIN failures. This can last for hours, and even the correct PIN will not work meanwhile. Unlock with the key file or the recovery code.")),
                         TpmRc.Integrity or TpmRc.Size or TpmRc.Value =>
                             new TpmUnavailableException(L.T("TPM の封印データを読み込めません。TPM がクリアされた可能性があります。鍵ファイル／復旧コードで解錠し、TPM を登録し直してください。",
                 "Cannot load the data sealed in the TPM. The TPM may have been reset. Unlock with the key file or the recovery code, then register the TPM again."), ex),

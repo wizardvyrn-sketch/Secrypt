@@ -43,7 +43,7 @@ public sealed class SlotRowViewModel(SlotInfo slot)
                 {
                     true => L.T("この PC の TPM + PIN", "This PC's TPM + PIN"),
                     false => L.T("他の PC（またはクリア前）の TPM + PIN", "Another PC's TPM (or before a TPM reset) + PIN"),
-                    _ => L.T("TPM + PIN（TPM を確認できません）", "TPM + PIN (the TPM cannot be checked)"),
+                    _ => L.T("TPM + PIN（TPM を確認できません。Windows が一時的にブロックしている場合があります）", "TPM + PIN (the TPM cannot be checked; Windows may be blocking it temporarily)"),
                 },
                 SlotType.Keyfile => L.T("鍵ファイル + パスワード", "Key file + password"),
                 SlotType.Recovery => L.T("復旧コード", "Recovery code"),

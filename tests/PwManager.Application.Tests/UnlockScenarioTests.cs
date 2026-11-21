@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using PwManager.Application.Policies;
 using PwManager.Application.Results;
 using PwManager.Application.Services;
 using PwManager.Application.Session;
@@ -49,35 +50,132 @@ public sealed class UnlockScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task S06_PINを3回間違えると待ち時間_時間がたてば再試行でき_成功で数え直す()
+    public async Task S06_鍵ファイルのパスワードを3回間違えると待ち時間_時間がたてば再試行でき_成功で数え直す()
     {
         await SetupAndLockAsync();
+        Task<UnlockResult> Keyfile(string password) => _pc.Unlock.UnlockAsync(new KeyfileUnlockRequest(_secrets.KeyfilePath, null, TestWorld.B(password)));
         for (int i = 1; i <= 2; i++)
         {
-            var r = await Pin("wrong-" + i);
-            Assert.Equal(ErrorCode.WrongPin, r.Error);
+            var r = await Keyfile("wrong password " + i);
+            Assert.Equal(ErrorCode.WrongKey, r.Error);
             Assert.Null(r.RetryAfter);
         }
-        var third = await Pin("wrong-3");
-        Assert.Equal(ErrorCode.WrongPin, third.Error);
+        var third = await Keyfile("wrong password 3");
         Assert.Equal(TimeSpan.FromSeconds(15), third.RetryAfter);
-        Assert.Equal(3, _pc.Tpm.Failures); // TPM 側でも数えられている
 
-        // 待ち時間中は TPM に問い合わせない（失敗回数を無駄に増やさない）
-        var calls = _pc.Tpm.UnsealCalls;
-        var waiting = await Pin(_pin);
-        Assert.Equal(ErrorCode.RetryLater, waiting.Error);
-        Assert.Equal(calls, _pc.Tpm.UnsealCalls);
+        // 待ち時間中は問い合わせない
+        Assert.Equal(ErrorCode.RetryLater, (await Keyfile(_password)).Error);
 
         _world.Time.Advance(TimeSpan.FromSeconds(16));
-        var fourth = await Pin("wrong-4");
+        var fourth = await Keyfile("wrong password 4");
         Assert.Equal(TimeSpan.FromSeconds(30), fourth.RetryAfter); // 倍増
 
         _world.Time.Advance(TimeSpan.FromSeconds(31));
+        Assert.True((await Keyfile(_password)).Ok);
+        _pc.Session.RequestLock(LockReason.Manual);
+        Assert.Equal(ErrorCode.WrongKey, (await Keyfile("wrong password 5")).Error);
+        Assert.Null(_pc.Unlock.RemainingDelay); // 成功で数え直した
+    }
+
+    [Fact]
+    public async Task S06_PINを3回間違えると_Windowsにブロックされる前にアプリがPINを止める()
+    {
+        await SetupAndLockAsync();
+        var start = _world.Time.GetUtcNow();
+        var first = await Pin("wrong-1");
+        Assert.Equal(ErrorCode.WrongPin, first.Error);
+        Assert.Equal(2, first.PinAttemptsLeft);
+        Assert.Null(first.RetryAfter);
+        var second = await Pin("wrong-2");
+        Assert.Equal(1, second.PinAttemptsLeft); // 「あと 1 回で停止」と案内できる
+        Assert.Null(second.PinResumeAt);
+
+        var third = await Pin("wrong-3");
+        Assert.Equal(ErrorCode.WrongPin, third.Error);
+        Assert.Equal(0, third.PinAttemptsLeft);
+        Assert.Equal(start + PinAttemptPolicy.Window, third.PinResumeAt); // 最初の失敗が窓から外れたら再開
+        Assert.Equal(TimeSpan.FromSeconds(15), third.RetryAfter);
+        Assert.Equal(3, _pc.Tpm.Failures);
+
+        // 停止中は、正しい PIN でも TPM に問い合わせない（4 回目の失敗でブロックされないため）
+        _world.Time.Advance(TimeSpan.FromMinutes(1));
+        var commands = _pc.Tpm.CommandCalls;
+        var refused = await Pin(_pin);
+        Assert.Equal(ErrorCode.PinSuspended, refused.Error);
+        Assert.Equal(third.PinResumeAt, refused.PinResumeAt);
+        Assert.Equal(commands, _pc.Tpm.CommandCalls);
+        Assert.Equal(3, _pc.Tpm.Failures);
+        Assert.Contains(_world.AllLogLines(), l => l.Contains("\"PinSuspended\"", StringComparison.Ordinal));
+
+        // 鍵ファイルと復旧コードは使える
+        Assert.True((await _pc.Unlock.UnlockAsync(new RecoveryUnlockRequest(_secrets.RecoveryCode))).Ok);
+        _pc.Session.RequestLock(LockReason.Manual);
+
+        // 窓（8 時間）が過ぎたら、PIN をまた試せる。成功しても、窓の中の失敗は数え直さない
+        _world.Time.Advance(PinAttemptPolicy.Window);
         Assert.True((await Pin(_pin)).Ok);
         _pc.Session.RequestLock(LockReason.Manual);
-        Assert.Equal(ErrorCode.WrongPin, (await Pin("wrong-5")).Error);
-        Assert.Null(_pc.Unlock.RemainingDelay); // 成功で数え直した
+        Assert.Equal(ErrorCode.WrongPin, (await Pin("wrong-4")).Error);
+        Assert.Empty(_pc.Settings.Current.PinFailures.Where(t => t <= start)); // 古い失敗は捨てられている
+    }
+
+    [Fact]
+    public async Task S06_PINの停止はアプリを開き直しても続き_停止中は解錠画面がTPMに問い合わせない()
+    {
+        await SetupAndLockAsync();
+        for (int i = 1; i <= 3; i++) await Pin("wrong-" + i);
+
+        // 設定ファイルから読み直す（アプリの再起動）
+        var restarted = _world.NewPc("pc1", _pc.Tpm); // 同じ PC（同じ設定フォルダ・同じ TPM）でアプリを起動し直す
+        var commands = _pc.Tpm.CommandCalls;
+        var options = await restarted.Unlock.GetOptionsAsync();
+        Assert.False(options.PinAvailable);
+        Assert.NotNull(options.PinResumeAt);
+        Assert.False(options.PinBlockedByOs);
+        Assert.False(options.TpmSlotsForOtherDevicesOnly); // 「この PC の TPM 未登録」と誤って案内しない
+        Assert.Equal(UnlockMethod.Keyfile, options.DefaultMethod);
+        Assert.Equal(commands, _pc.Tpm.CommandCalls);
+        Assert.Equal(ErrorCode.PinSuspended, (await restarted.Unlock.UnlockAsync(new PinUnlockRequest(TestWorld.B(_pin)))).Error);
+    }
+
+    [Fact]
+    public async Task S06_時計が戻って未来になった失敗の記録は_いまの失敗として数える()
+    {
+        await SetupAndLockAsync();
+        var future = _world.Time.GetUtcNow().AddDays(30);
+        _pc.Settings.Update(s => s.PinFailures = [future, future, future]);
+        var r = await Pin(_pin);
+        Assert.Equal(ErrorCode.PinSuspended, r.Error);
+        Assert.True(r.PinResumeAt <= _world.Time.GetUtcNow() + PinAttemptPolicy.Window);
+    }
+
+    [Fact]
+    public async Task S06c_Windowsが標準ユーザーのTPMコマンドをブロックしている間_解錠画面の案内を出せてPIN以外で開ける()
+    {
+        await SetupAndLockAsync();
+        _pc.Tpm.OsBlocked = true; // 実機: 認証失敗が続くと、封印・読み込みを含む TPM コマンドが拒否される（TPM イベント ID 23）
+
+        var options = await _pc.Unlock.GetOptionsAsync(); // 以前は TpmLockedOutException がそのまま出ていた
+        Assert.True(options.VaultReadable);
+        Assert.False(options.PinAvailable);
+        Assert.True(options.PinBlockedByOs);
+        Assert.False(options.TpmSlotsForOtherDevicesOnly);
+        Assert.Equal(UnlockMethod.Keyfile, options.DefaultMethod);
+
+        var pin = await Pin(_pin);
+        Assert.Equal(ErrorCode.TpmLockedOut, pin.Error);
+        Assert.Equal(0, _pc.Tpm.Failures); // 失敗として数えない（PIN の誤りではない）
+        Assert.Null(pin.PinAttemptsLeft);
+        Assert.Equal(0, _pc.Backoff.ConsecutiveFailures);
+        Assert.Empty(_pc.Settings.Current.PinFailures);
+
+        Assert.True((await _pc.Unlock.UnlockAsync(new KeyfileUnlockRequest(_secrets.KeyfilePath, null, TestWorld.B(_password)))).Ok);
+        Assert.Contains(_world.AllLogLines(), l => l.Contains("\"TpmBlockedByOs\"", StringComparison.Ordinal));
+        _pc.Session.RequestLock(LockReason.Manual);
+
+        _pc.Tpm.OsBlocked = false; // ブロックが解けたら、PIN がまた使える
+        Assert.True((await _pc.Unlock.GetOptionsAsync()).PinAvailable);
+        Assert.True((await Pin(_pin)).Ok);
     }
 
     [Fact]
@@ -90,6 +188,8 @@ public sealed class UnlockScenarioTests : IDisposable
         await pc.Unlock.UnlockAsync(new PinUnlockRequest(TestWorld.B("bad-1")));
         await pc.Unlock.UnlockAsync(new PinUnlockRequest(TestWorld.B("bad-2")));
         _world.Time.Advance(TimeSpan.FromMinutes(10));
+        // PIN 停止の窓の外にして（この試験は TPM 側のロックを見る）、TPM のロックが先に効く状況にする
+        pc.Settings.Update(s => s.PinFailures = []);
         Assert.Equal(ErrorCode.TpmLockedOut, (await pc.Unlock.UnlockAsync(new PinUnlockRequest(TestWorld.B(_pin)))).Error);
 
         Assert.True((await pc.Unlock.UnlockAsync(new KeyfileUnlockRequest(secrets.KeyfilePath, null, TestWorld.B(_password)))).Ok);

@@ -25,8 +25,10 @@ public enum ErrorCode
     KeyfileForOtherVault,
     /// <summary>この Vault 用だが、スロットが削除済み（失効した鍵ファイル）。</summary>
     KeyfileRevoked,
-    /// <summary>TPM が総当たり対策でロック中。</summary>
+    /// <summary>TPM が使えない状態にある。Windows が TPM の認証失敗の多さで、このユーザーの TPM コマンドをブロック中（または TPM 自体の総当たり対策）。</summary>
     TpmLockedOut,
+    /// <summary>PIN の失敗が続いたため、Windows に TPM をブロックされないよう、アプリが PIN の試行を止めている（再開は PinResumeAt）。</summary>
+    PinSuspended,
     /// <summary>TPM が使えない（未搭載・無効・接続不可）。</summary>
     TpmUnavailable,
     /// <summary>この PC の TPM で登録した解錠方法がない（PC 買い替え・TPM クリア後・別の PC）。</summary>

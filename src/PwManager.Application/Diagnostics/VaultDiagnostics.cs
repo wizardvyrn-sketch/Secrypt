@@ -51,6 +51,7 @@ public static class VaultDiagnostics
             {
                 try { device = tpm.IsSealedOnThisDevice(s.TypeParams) ? "  ·  この PC" : "  ·  他の PC／クリア前"; }
                 catch (TpmUnavailableException) { device = "  ·  TPM を確認できません"; }
+                catch (TpmLockedOutException) { device = "  ·  TPM が一時的にブロック中（確認できません）"; }
             }
             var used = s.LastVerified is { } v ? v.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "未使用";
             sb.AppendLine(Inv($"  - {s.Type,-8} {s.Id}  「{s.Label}」  登録 {s.Created.ToLocalTime():yyyy-MM-dd}  最終使用 {used}  KDF {s.Kdf.MemoryKiB / 1024} MiB × {s.Kdf.Iterations}{device}"));

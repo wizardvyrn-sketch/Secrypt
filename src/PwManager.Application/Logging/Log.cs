@@ -41,6 +41,9 @@ public static partial class Log
     [LoggerMessage(2202, LogLevel.Error, "UnlockError method={Method} type={ExceptionType}")]
     public static partial void UnlockError(ILogger logger, string method, string exceptionType, Exception exception);
 
+    [LoggerMessage(2203, LogLevel.Warning, "PinSuspended failuresInWindow={Failures} resumeAt={ResumeAt}")]
+    public static partial void PinSuspended(ILogger logger, int failures, DateTimeOffset resumeAt);
+
     [LoggerMessage(2301, LogLevel.Information, "Locked reason={Reason}")]
     public static partial void Locked(ILogger logger, LockReason reason);
 
@@ -107,6 +110,9 @@ public static partial class Log
 
     [LoggerMessage(6101, LogLevel.Warning, "TpmUnavailable reason={Reason}")]
     public static partial void TpmUnavailable(ILogger logger, string reason);
+
+    [LoggerMessage(6103, LogLevel.Warning, "TpmBlockedByOs context={Context}")]
+    public static partial void TpmBlockedByOs(ILogger logger, string context);
 
     [LoggerMessage(6102, LogLevel.Information, "TpmSlotsOnThisDevice total={Total} thisDevice={ThisDevice}")]
     public static partial void TpmSlotsOnThisDevice(ILogger logger, int total, int thisDevice);

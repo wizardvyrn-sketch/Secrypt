@@ -66,6 +66,12 @@ public sealed class SlotService(VaultSession session, ITpmSealer tpm, IKeyfileSt
             {
                 try { map[s.Id] = tpm.IsSealedOnThisDevice(s.TypeParams); }
                 catch (TpmUnavailableException) { map[s.Id] = null; }
+                catch (TpmLockedOutException)
+                {
+                    // Windows が TPM コマンドをブロック中。この PC のものかは分からない（null）。一覧は出す
+                    Log.TpmBlockedByOs(_log, "SlotList");
+                    map[s.Id] = null;
+                }
             }
             return map;
         });

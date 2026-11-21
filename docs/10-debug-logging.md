@@ -44,11 +44,11 @@
 | 範囲 | 区分 | イベント（ID / 名前 / 項目） |
 |---|---|---|
 | 1xxx | アプリ | 1001 AppStarted（版、OS、.NET）/ 1002 AppExiting / 1003 SecondInstanceBlocked / 1004 VaultLocation＊（伏せ字のパス、有無）/ 1090 UnhandledException（発生元、種類、例外） |
-| 2xxx | 解錠・ロック | 2001 UnlockStarted（方式）/ 2101 UnlockSucceeded（方式、スロット ID、所要時間、counter）/ 2201 UnlockFailed（方式、理由: WrongPin / WrongKey / WrongRecoveryCode / RecoveryCodeMalformed / Keyfile* / Tpm* / VaultFormat / VaultTampered など、所要時間、連続失敗数）/ 2202 UnlockError＊ / 2301 Locked（理由: Manual / Idle / SessionLock / Suspend / Exit / Error）/ 2302 AutoLockDeferred（理由、実行中の操作名）/ 2303 SlotUseRecorded＊（スロット ID） |
+| 2xxx | 解錠・ロック | 2001 UnlockStarted（方式）/ 2101 UnlockSucceeded（方式、スロット ID、所要時間、counter）/ 2201 UnlockFailed（方式、理由: WrongPin / WrongKey / WrongRecoveryCode / RecoveryCodeMalformed / Keyfile* / Tpm* / VaultFormat / VaultTampered など、所要時間、連続失敗数）/ 2202 UnlockError＊ / 2203 PinSuspended（窓の中の失敗数、再開時刻。PIN の試行をアプリが止めた）/ 2301 Locked（理由: Manual / Idle / SessionLock / Suspend / Exit / Error）/ 2302 AutoLockDeferred（理由、実行中の操作名）/ 2303 SlotUseRecorded＊（スロット ID） |
 | 3xxx | スロット・初期設定 | 3001 SlotEnrolled（種別、スロット ID）/ 3002 SlotRemoved / 3003 SlotReplaced（旧 ID、新 ID）/ 3101 SlotPolicyRejected（操作名）/ 3201 SetupCompleted＊（Vault ID、スロット数）/ 3202 SetupAbandoned＊（手順）/ 3203 KeyfileCleanupFailed＊ |
 | 4xxx | 項目 | 4001 EntryCreated / 4002 EntryUpdated / 4003 EntryDeleted（いずれも項目 ID のみ）/ 4101 UnsavedChangesDiscarded（項目 ID、理由） |
 | 5xxx | 保存 | 5001 SaveCompleted（操作名、counter、サイズ、所要時間、バックアップを回したか）/ 5101 SaveFailed（操作名、例外の種類、元に戻したか）/ 5102 SaveConflict（操作名、開いたときの counter）/ 5201 BackupRotated（Debug）/ 5202 BackupsPurged（操作名、削除数、削除できなかった数。解錠方法の削除・復旧コードの作り直し時） |
-| 6xxx | TPM | 6001 TpmAvailable / 6101 TpmUnavailable（理由）/ 6102 TpmSlotsOnThisDevice＊（TPM スロット数、この PC のもの）。製造元・版と 6201 TpmCommandFailed は未実装（`ITpmSealer` が情報を返さないため） |
+| 6xxx | TPM | 6001 TpmAvailable / 6101 TpmUnavailable（理由）/ 6103 TpmBlockedByOs（場面: UnlockOptions / SlotList / Unlock。Windows が TPM コマンドをブロック中）/ 6102 TpmSlotsOnThisDevice＊（TPM スロット数、この PC のもの）。製造元・版と 6201 TpmCommandFailed は未実装（`ITpmSealer` が情報を返さないため） |
 | 7xxx | 取り込み | 7001 ImportPreviewed（行数、取り込む件数、登録済みと同じ、CSV 内の重複、スキップ）/ 7002 ImportCommitted（件数）/ 7003 ImportSourceDeleted（成否）/ 7101 ImportFailed＊（理由） |
 | 8xxx | 設定 | 8001 SettingsChanged（項目名・新しい値。数値の設定のみ）/ 8101 SettingsLoadFailed＊ / 8102 SettingsSaveFailed＊（例外の種類） |
 

@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <!-- 表示用の版（1.00A 形式: 機能追加で数字、不具合修正で英字を進める）。画面とパッケージ名はこちらを使う。
          Version は .NET の数値形式のため、DisplayVersion の数字部分に合わせる -->
-    <DisplayVersion>1.01A</DisplayVersion>
+    <DisplayVersion>1.01B</DisplayVersion>
     <Version>1.0.1</Version>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

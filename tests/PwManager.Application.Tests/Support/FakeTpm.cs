@@ -17,6 +17,18 @@ internal sealed class FakeTpm(int maxFailures = 31) : ITpmSealer
     public bool Available { get; set; } = true;
     public int UnsealCalls { get; private set; }
 
+    /// <summary>
+    /// Windows が標準ユーザーの TPM コマンドをブロックしている状態（TPM イベント ID 23）。実機では、PIN の誤りだけでなく
+    /// 封印・読み込みも含む認証付きコマンドがすべて TpmLockedOutException になる（2026-11-21 に実機で確認）。
+    /// </summary>
+    public bool OsBlocked { get; set; }
+
+    /// <summary>TPM への問い合わせ（認証付きコマンド）の回数。ブロック中・PIN 停止中に問い合わせないことの確認に使う。</summary>
+    public int CommandCalls { get; private set; }
+
+    /// <summary>想定外の例外（TPM のドライバの不具合など）を再現する。</summary>
+    public bool ThrowUnexpected { get; set; }
+
     /// <summary>TPM のクリア（SRK が作り直され、以前の blob は使えなくなる）。</summary>
     public void Clear()
     {
@@ -36,7 +48,7 @@ internal sealed class FakeTpm(int maxFailures = 31) : ITpmSealer
 
     public byte[] Seal(ReadOnlySpan<byte> authValue, ReadOnlySpan<byte> secret)
     {
-        EnsureAvailable();
+        EnsureCommandAllowed();
         var nonce = CryptoPrimitives.RandomBytes(24);
         var ct = CryptoPrimitives.AeadEncrypt(_deviceKey, nonce, SHA256.HashData(authValue), secret);
         return [.. _deviceId, .. nonce, .. ct];
@@ -44,17 +56,16 @@ internal sealed class FakeTpm(int maxFailures = 31) : ITpmSealer
 
     public bool IsSealedOnThisDevice(ReadOnlySpan<byte> blob)
     {
-        EnsureAvailable();
+        EnsureCommandAllowed();
         return blob.Length > 16 + 24 && blob[..16].SequenceEqual(_deviceId);
     }
 
     public SecretBuffer Unseal(ReadOnlySpan<byte> blob, ReadOnlySpan<byte> authValue)
     {
-        EnsureAvailable();
+        EnsureCommandAllowed();
         UnsealCalls++;
         if (!IsSealedOnThisDevice(blob))
             throw new TpmUnavailableException("TPM の封印データを読み込めません（テスト: 別の TPM）。");
-        if (Failures >= maxFailures) throw new TpmLockedOutException("TPM がロック中（テスト）");
         var r = CryptoPrimitives.AeadDecrypt(_deviceKey, blob.Slice(16, 24), SHA256.HashData(authValue), blob[40..]);
         if (r is null)
         {
@@ -64,8 +75,12 @@ internal sealed class FakeTpm(int maxFailures = 31) : ITpmSealer
         return r;
     }
 
-    private void EnsureAvailable()
+    /// <summary>認証付きコマンドの共通の入口。ロックアウト中（OS のブロック、または DA の上限）は何も実行できない。</summary>
+    private void EnsureCommandAllowed()
     {
+        CommandCalls++;
+        if (ThrowUnexpected) throw new InvalidOperationException("想定外の TPM の失敗（テスト）");
         if (!Available) throw new TpmUnavailableException("TPM に接続できません（テスト）。");
+        if (OsBlocked || Failures >= maxFailures) throw new TpmLockedOutException("TPM がロック中（テスト）");
     }
 }

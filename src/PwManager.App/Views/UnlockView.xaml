@@ -40,7 +40,7 @@
                     <StackPanel Visibility="{Binding IsPinSelected, Converter={StaticResource BoolToVisible}}">
                         <TextBlock Text="PIN" Style="{StaticResource FieldLabel}"/>
                         <PasswordBox c:Secret.Input="{Binding Pin}" FontSize="16"/>
-                        <TextBlock Style="{StaticResource Hint}" Text="{c:T Ja='TPM が PIN の失敗回数を数えます（31 回でロック、10 分ごとに 1 回減少）。', En='The TPM counts failed PIN attempts (locks at 31; one is forgiven every 10 minutes).'}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="{c:T Ja='PIN の失敗が続くと Windows が TPM を数時間ブロックします。そのため 8 時間のうちに 3 回間違えると、PIN での解錠を一時停止します。', En='Repeated PIN failures make Windows block the TPM for hours. So after 3 wrong PINs within 8 hours, PIN unlock is paused.'}"/>
                     </StackPanel>
 
                     <!-- 鍵ファイル -->
